@@ -124,7 +124,8 @@
   word-break: break-word;
 }
 
-.friend-edit-btn {
+.friend-edit-btn,
+.friend-remove-btn {
   margin-top: 8px;
 }
 

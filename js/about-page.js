@@ -51,8 +51,7 @@
         '<div class="field"><input type="text" class="friend-name-input" data-id="' + f.id + '" value="' + escapeHtml(f.name) + '" placeholder="이름"></div>' +
         '<div class="field"><input type="text" class="friend-note-input" data-id="' + f.id + '" value="' + escapeHtml(f.note || "") + '" placeholder="한마디 소개"></div>' +
         '<button class="btn btn-primary btn-sm friend-save-btn" data-id="' + f.id + '">저장</button> ' +
-        '<button class="btn btn-ghost btn-sm friend-cancel-btn" data-id="' + f.id + '">취소</button> ' +
-        '<button class="btn btn-ghost btn-sm friend-remove-btn" data-id="' + f.id + '">🗑️ 삭제</button>' +
+        '<button class="btn btn-ghost btn-sm friend-cancel-btn" data-id="' + f.id + '">취소</button>' +
         "</div>"
       );
     }
@@ -61,7 +60,10 @@
       '<div class="friend-avatar" id="friend-avatar-' + f.id + '">' + escapeHtml(f.emoji || "🐾") + "</div>" +
       '<div class="friend-name">' + escapeHtml(f.name) + "</div>" +
       (f.note ? '<div class="friend-note">' + escapeHtml(f.note) + "</div>" : "") +
-      (isAdmin ? '<button class="btn btn-ghost btn-sm friend-edit-btn" data-id="' + f.id + '">✏️ 수정</button>' : "") +
+      (isAdmin
+        ? '<button class="btn btn-ghost btn-sm friend-edit-btn" data-id="' + f.id + '">✏️ 수정</button> ' +
+          '<button class="btn btn-ghost btn-sm friend-remove-btn" data-id="' + f.id + '">🗑️ 삭제</button>'
+        : "") +
       "</div>"
     );
   }
