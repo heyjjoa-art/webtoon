@@ -7,7 +7,7 @@ var FriendsStore = (function () {
   var MAX_FRIENDS = 12;
 
   var DEFAULT_FRIENDS = [
-    { id: "friend-huin", name: "흰이", note: "신생아 인형 같은 백곰", emoji: "🐻‍❄️", personality: "" },
+    { id: "friend-huin", name: "흰이", note: "신생아 인형 같은 백곰", emoji: "🐻", personality: "" },
     { id: "friend-padaki", name: "파닥이", note: "흰이랑 같은 느낌 브라운곰", emoji: "🧸", personality: "" }
   ];
 
