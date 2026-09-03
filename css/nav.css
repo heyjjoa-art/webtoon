@@ -80,6 +80,27 @@
   border-color: #3a2f52;
 }
 
+@media (max-width: 600px) {
+  .site-nav {
+    flex-wrap: wrap;
+  }
+
+  .site-nav .nav-brand {
+    order: 1;
+  }
+
+  .site-nav .nav-admin-pill {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .site-nav .nav-links {
+    order: 3;
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
 @media (max-width: 480px) {
   .site-nav .nav-brand span.nav-brand-text {
     display: none;
