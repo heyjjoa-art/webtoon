@@ -1,156 +1,89 @@
-// AI 팬 댓글. 이 사이트는 서버가 없는 정적 사이트라 진짜 사람도, 외부 API도 없다
-// (비용도, 지연도, 실패 처리도 없다는 뜻). 대신 회차 id로부터 "결정론적으로" 댓글을
-// 만들어낸다 - 같은 회차라면 어느 기기·어느 방문자가 언제 열어도 항상 같은 댓글이,
-// 같은 순서로, 같은 시점에 나타난다. 저장도 안 하고 매번 계산만 한다.
+// 등록된 친구(about.html 친구소개)들이 남기는 댓글. 이 사이트는 서버가 없는 정적
+// 사이트라 진짜 사람도, 외부 AI API도 없다(비용도, 지연도, 실패 처리도 없다는 뜻) -
+// 대신 글/그림/회차 id로부터 "결정론적으로" 댓글을 만들어낸다. 같은 게시물이라면
+// 어느 기기·어느 방문자가 언제 열어도 항상 같은 댓글이 같은 순서로 나타난다.
+//
+// 규칙:
+//  - 친구 한 명당 게시물 하나에 댓글을 딱 1개만 남긴다 - 그래서 등록된 친구가
+//    아무리 많아도(최대 10명) 게시물 하나의 댓글 수는 절대 10개를 넘지 않고,
+//    모든 친구가 빠짐없이 골고루 등장한다.
+//  - 각 친구는 발행 후 0~4일 사이에 걸쳐 하루에 최대 2~3명씩만 나타나도록
+//    순서를 나눠 배정한다(하루 10개 미만을 항상 만족).
+//  - 댓글 말투는 친구소개에 적어둔 "성격" 텍스트에서 키워드를 찾아 그에 맞는
+//    템플릿을 고른다. 못 찾으면 무난한 기본 말투를 쓴다.
+//  - 게시물의 실제 내용(글 본문/그림 한마디/마지막 대사)에서 짧은 한 조각을
+//    뽑아 댓글 문장 속에 그대로 인용해서, 아무 말이나 하는 게 아니라 그 글/그림을
+//    보고 다는 것처럼 느껴지게 한다.
 var Fans = (function () {
-  // 캐릭터마다 말투 어미와 자주 쓰는 슬롯이 달라야 "댓글창에 진짜 여러 사람이
-  // 있다"는 느낌이 난다. templates 안의 {제목}{N번컷}{컷수}{태그}{대사}는
-  // fillTemplate에서 실제 값으로 치환된다.
-  var FANS = [
-    {
-      id: "yeol",
-      name: "열정만렙",
-      emoji: "🔥",
-      templates: [
-        "미쳤다 진짜... {제목} 이번화 최고예요!!!",
-        "{N번컷} 보고 소리질렀어요 ㄹㅇ",
-        "작가님 천재세요 이번화도 걸작입니다 🔥🔥",
-        "일어나자마자 보는 중인데 심장 나갈 뻔"
-      ]
+  var TONE_KEYWORDS = [
+    ["warm", ["다정", "따뜻", "포근", "상냥", "친절"]],
+    ["energetic", ["씩씩", "활발", "명랑", "에너지", "텐션", "발랄"]],
+    ["playful", ["장난", "유쾌", "개구쟁이", "까불", "엉뚱", "익살"]],
+    ["shy", ["수줍", "조용", "차분", "내성적", "낯가림"]],
+    ["blunt", ["무뚝뚝", "츤데레", "쿨", "시크", "까칠"]],
+    ["caring", ["걱정", "보살핌", "챙김", "예민"]],
+    ["curious", ["호기심", "궁금", "질문", "탐구"]]
+  ];
+
+  var KIND_WORD = { toon: "이번화", art: "이 그림", board: "이 글" };
+
+  var TEMPLATES = {
+    warm: {
+      toon: ["{제목} 오늘도 잘 봤어요! 항상 응원할게요 💛", "{대상} 보니까 마음이 따뜻해지네요", "고생 많았어요, 오늘도 수고했어요!", "\"{내용}\" 이 부분 진짜 좋았어요"],
+      art: ["{대상} 보니까 마음이 몽글몽글해져요", "오늘도 예쁘게 잘 그렸네요 :)", "이 그림 보고 기분 좋아졌어요!", "'{내용}' 이 한마디도 다정하네요"],
+      board: ["{대상} 읽고 마음이 따뜻해졌어요", "항상 좋은 글 남겨줘서 고마워요", "'{내용}' 이 부분 공감돼요", "오늘도 잘 읽었어요, 고생했어요"]
     },
-    {
-      id: "bunseok",
-      name: "구도분석러",
-      emoji: "🔍",
-      templates: [
-        "{N번컷} 구도 잡는 방식이 진짜 영화적이네요",
-        "{컷수}컷 호흡 조절 절묘합니다. 특히 마지막 컷 여백 처리 좋아요",
-        "색감이랑 톤이 이번화 분위기랑 딱 맞아떨어져요",
-        "선 처리 보면 볼수록 디테일이 살아있어요"
-      ]
+    energetic: {
+      toon: ["우와아 {제목} 완전 신난다!!!", "{대상} 진짜 텐션 최고예요!!", "오늘도 파이팅!! 완전 재밌어요", "\"{내용}\" 이 대사 완전 좋아요!!"],
+      art: ["{대상} 색감부터 텐션 폭발이에요!!", "우와 진짜 잘그렸다!!", "오늘도 에너지 뿜뿜이네요 ㅎㅎ", "'{내용}' 완전 신나요!!"],
+      board: ["{대상} 읽는데 텐션 올라가요!!", "오 완전 재밌어요!!", "'{내용}' 이거 완전 인정!!", "오늘도 신나게 잘 읽었어요!!"]
     },
-    {
-      id: "deurip",
-      name: "드립력만렙",
-      emoji: "😂",
-      templates: [
-        "{N번컷} 저거 저 이번주 제 상태인데요??",
-        "아니 작가님 저를 어떻게 아세요 ㅋㅋㅋㅋ",
-        "이거 보고 회사에서 혼자 웃음 참았습니다",
-        "{제목} 이거 실화냐고요 ㅋㅋㅋㅋㅋㅋ"
-      ]
+    playful: {
+      toon: ["{대상} 보고 킥킥댔어요 ㅋㅋㅋ", "{제목} 완전 웃겨요 ㅋㅋ", "\"{내용}\" 이거 완전 개그 ㅋㅋㅋ", "저만 웃긴 거 아니죠?? ㅋㅋㅋ"],
+      art: ["{대상} 보고 몰래 웃었어요 ㅋㅋ", "이거 저장각인데요? ㅋㅋ", "'{내용}' 진짜 웃김 ㅋㅋㅋ", "장난 아니게 잘 그렸네요 ㅋㅋ"],
+      board: ["'{내용}' 이거 완전 웃겨요 ㅋㅋㅋ", "{대상} 읽다가 빵터졌어요", "몰래 친구한테도 보여줬어요 ㅋㅋ", "오늘도 킥킥대며 잘 읽었어요"]
     },
-    {
-      id: "geokjeong",
-      name: "걱정인형",
-      emoji: "😟",
-      templates: [
-        "잠깐만요... 주인공 이제 괜찮은 거 맞죠?? 너무 걱정돼요",
-        "{N번컷} 보고 심장 철렁했어요... 다음화 빨리 주세요",
-        "이러다 무슨 일 생기는 거 아니겠죠 ㅠㅠ 제발요",
-        "밤새 이 생각만 날 것 같아요..."
-      ]
+    shy: {
+      toon: ["...{대상} 잘 보고 갑니다.", "조용히 응원하고 있어요.", "\"{내용}\" ...좋았어요.", "말은 잘 못하지만 항상 챙겨봐요."],
+      art: ["...예쁘네요.", "조용히 저장했어요.", "'{내용}' ...좋아요.", "항상 몰래 보고 있어요."],
+      board: ["...잘 읽었어요.", "조용히 응원할게요.", "'{내용}' ...공감해요.", "말주변은 없지만 좋았어요."]
     },
-    {
-      id: "paenart",
-      name: "팬아트장인",
-      emoji: "🎨",
-      templates: [
-        "이번화 보고 팬아트 그리고 싶어져요 특히 {N번컷}",
-        "{제목} 세계관 색감 팔레트 진짜 예뻐요",
-        "이 장면 꼭 그려서 올릴게요 기다려주세요!",
-        "선화만 봐도 감탄나옵니다..."
-      ]
+    blunt: {
+      toon: ["{대상}... 나쁘지 않네.", "뭐, 괜찮았어.", "...{제목} 좀 봐줄만 하네.", "\"{내용}\"... 인정."],
+      art: ["...나쁘지 않네.", "뭐, 잘 그렸네.", "...괜찮게 봤음.", "'{내용}'... 인정."],
+      board: ["...읽어봤음.", "뭐, 나쁘지 않네.", "'{내용}'... 그럴듯하네.", "...괜찮게 읽었어."]
     },
-    {
-      id: "matchumbeop",
-      name: "맞춤법요정",
-      emoji: "📝",
-      templates: [
-        "{N번컷} 대사 오타 있는 거 같아요! 확인 부탁드려요",
-        "내용 넘 재밌게 봤습니다, 사소한 오타 하나 발견!",
-        "항상 꼼꼼히 챙겨주셔서 감사해요 오늘도 잘 봤습니다",
-        "번역투 하나 살짝 걸리네요 그래도 재밌어요"
-      ]
+    caring: {
+      toon: ["{대상} 보면서 괜찮은지 걱정했어요 ㅠㅠ", "무리하지 말고 천천히 해요...", "\"{내용}\" 이 부분 마음이 쓰이네요", "항상 건강 챙기면서 해요!"],
+      art: ["{대상} 그리느라 손 안 아팠어요?", "무리하지 말아요, 잘 봤어요", "'{내용}' 왠지 마음이 쓰이네요", "항상 건강 챙겨요!"],
+      board: ["{대상} 읽고 괜히 걱정됐어요...", "무리하지 말고 천천히 지내요", "'{내용}' 이 부분 마음이 쓰여요", "항상 잘 지내고 있는 거죠?"]
     },
-    {
-      id: "nunmul",
-      name: "눈물버튼",
-      emoji: "😭",
-      templates: [
-        "{N번컷}에서 그냥 울어버렸어요 ㅠㅠㅠㅠ",
-        "왜 이렇게 슬픈 장면을 이렇게 예쁘게 그리시는 거예요...",
-        "{제목} 보면서 계속 눈물 훔치고 있습니다",
-        "마지막 대사 \"{대사}\" 보고 무너졌어요"
-      ]
+    curious: {
+      toon: ["{대상} 이거 다음엔 어떻게 되나요?? 궁금해요!", "\"{내용}\" 이거 무슨 뜻이에요??", "뒷이야기 너무 궁금해요!", "다음화는 언제 나와요??"],
+      art: ["이거 어떻게 그린 거예요? 궁금해요!", "'{내용}' 무슨 의미예요?", "다음엔 뭘 그릴 거예요?", "이 그림 뒷이야기 있나요?"],
+      board: ["'{내용}' 이거 더 자세히 알고 싶어요!", "이 얘기 다음편 있나요??", "궁금한 게 생겼어요, 답해줄 수 있어요?", "{대상} 읽고 질문이 생겼어요!"]
     },
-    {
-      id: "iron",
-      name: "이론충",
-      emoji: "🧠",
-      templates: [
-        "{N번컷} 복선인 것 같은데... 다음화에서 터질 듯",
-        "이거 초반 {태그} 떡밥이랑 이어지는 거 아닐까요??",
-        "제 추측이지만 다음화에 반전 있을 것 같습니다",
-        "다시 정주행하면서 복선 찾는 중이에요 소름"
-      ]
-    },
-    {
-      id: "goinmul",
-      name: "조용한고인물",
-      emoji: "🌙",
-      templates: [
-        "오늘도 잘 보고 갑니다.",
-        "꾸준히 챙겨보고 있어요. 항상 감사합니다.",
-        "이번화도 좋았어요.",
-        "{제목} 연재 응원합니다."
-      ]
-    },
-    {
-      id: "sinip",
-      name: "정주행신입",
-      emoji: "🆕",
-      templates: [
-        "정주행하다가 실시간 정주행 합류했습니다!! 반갑습니다",
-        "1화부터 정주행했는데 이번화 진짜 재밌네요",
-        "이제야 이 작품 발견해서 억울해요 왜 이제 봤을까요",
-        "{제목} 완전 제 취향이에요, 정주행 완료!"
-      ]
-    },
-    {
-      id: "yeongeop",
-      name: "영업왕",
-      emoji: "📢",
-      templates: [
-        "이거 친구들한테 다 영업했어요 다들 좋아해요",
-        "단톡방에 공유했습니다, 다들 정주행 시작함 ㅋㅋ",
-        "{제목} 왜 아직 안 본 사람이 있지 다들 보세요",
-        "이번화는 특히 영업하기 좋은 화였어요"
-      ]
-    },
-    {
-      id: "jimok",
-      name: "특정컷지목러",
-      emoji: "📌",
-      templates: [
-        "{N번컷} 이거 캡처해서 배경화면 했어요",
-        "{N번컷}만 열 번 넘게 돌려봤습니다",
-        "다들 {N번컷} 보고 오세요 인생컷입니다",
-        "{N번컷}에 진심으로 소름돋았어요"
-      ]
+    default: {
+      toon: ["{대상} 잘 보고 가요!", "{제목} 오늘도 응원해요", "\"{내용}\" 좋았어요", "항상 잘 보고 있어요 :)"],
+      art: ["{대상} 잘 보고 가요!", "오늘도 잘 그렸네요", "'{내용}' 좋았어요", "항상 응원해요!"],
+      board: ["{대상} 잘 읽었어요!", "오늘도 좋은 글이었어요", "'{내용}' 공감돼요", "항상 잘 보고 있어요"]
     }
-  ];
+  };
 
-  var REPLY_TEMPLATES = [
-    "저도 완전 공감이요 {닉네임}님!",
-    "ㅋㅋㅋㅋ 맞아요 {닉네임}님 말이 맞음",
-    "오 그거 저도 생각했어요",
-    "{닉네임}님 댓글 보고 다시 봤는데 진짜 그러네요",
-    "저는 다르게 봤는데 그것도 일리 있네요"
-  ];
+  function detectTone(personality) {
+    var p = String(personality || "");
+    for (var i = 0; i < TONE_KEYWORDS.length; i++) {
+      var tone = TONE_KEYWORDS[i][0];
+      var words = TONE_KEYWORDS[i][1];
+      for (var j = 0; j < words.length; j++) {
+        if (p.indexOf(words[j]) !== -1) return tone;
+      }
+    }
+    return "default";
+  }
 
-  // 문자열 → 32비트 정수 시드 (djb2 변형). 회차 id가 조금만 달라도(ep-1 vs ep-2)
-  // 전혀 다른 댓글 조합이 나오도록 섞는다.
+  // 문자열 → 32비트 정수 시드 (djb2 변형). id가 조금만 달라도 전혀 다른 조합이
+  // 나오도록 섞는다.
   function hashString(str) {
     var h = 2166136261;
     for (var i = 0; i < str.length; i++) {
@@ -161,7 +94,6 @@ var Fans = (function () {
   }
 
   // mulberry32: 시드 하나로 재현 가능한 0~1 난수를 계속 뽑아내는 작은 PRNG.
-  // Math.random을 쓰면 방문할 때마다 댓글이 바뀌어버려서 "실제 팬"처럼 안 느껴진다.
   function mulberry32(seed) {
     var t = seed >>> 0;
     return function () {
@@ -179,73 +111,58 @@ var Fans = (function () {
   function fillTemplate(tpl, ctx) {
     return tpl
       .replace(/\{제목\}/g, ctx.title || "이번화")
-      .replace(/\{N번컷\}/g, ctx.panelNo + "번컷")
-      .replace(/\{컷수\}/g, String(ctx.panelCount))
-      .replace(/\{태그\}/g, ctx.tag || "이 작품")
-      .replace(/\{대사\}/g, ctx.lastLine || "…");
+      .replace(/\{대상\}/g, ctx.kindWord)
+      .replace(/\{내용\}/g, ctx.snippet || ctx.title || "");
   }
 
-  function lastLine(episode) {
-    var texts = episode.texts || [];
-    if (!texts.length) return "";
-    return String(texts[texts.length - 1].text || "").slice(0, 24);
+  // 게시물의 실제 내용에서 짧은 한 조각을 뽑아온다 - 댓글이 아무 말이나 하는 게
+  // 아니라 그 글/그림/회차를 보고 반응하는 것처럼 느끼게 해준다.
+  function contentSnippet(item, kind) {
+    var raw = "";
+    if (kind === "board") {
+      raw = item.body || "";
+    } else if (kind === "art") {
+      raw = item.caption || item.title || "";
+    } else {
+      var texts = item.texts || [];
+      raw = texts.length ? texts[texts.length - 1].text || "" : item.summary || item.title || "";
+    }
+    raw = String(raw).replace(/\s+/g, " ").trim();
+    if (!raw) return item.title || "";
+    return raw.length > 26 ? raw.slice(0, 26) + "…" : raw;
   }
 
-  // 회차 하나에 대한 전체 댓글 트리(부모+답글)를 결정론적으로 만든다. delayMinutes는
-  // "발행 시각으로부터 몇 분 뒤에 이 댓글이 보일지"이고, 0~48시간 사이에 앞쪽으로
-  // 쏠리게(막 올라온 화일수록 몰리고, 시간이 지날수록 뜸해지게) 분포시킨다.
-  function generateComments(episode) {
-    var panelCount = (episode.panels || []).length || 1;
+  // 게시물 하나에 대한 전체 댓글 목록을 결정론적으로 만든다. 친구 한 명당
+  // 댓글 1개, 순서대로 하루씩 나눠 배정해서(0~3일차) 하루 최대 3명 정도만
+  // 몰리게 한다 - 등록 친구가 최대 10명이라 하루 10개는 절대 넘지 않는다.
+  function generateComments(item, kind) {
+    kind = kind === "art" || kind === "board" ? kind : "toon";
+    var friends = (typeof FriendsStore !== "undefined" ? FriendsStore.getFriends() : []) || [];
+    if (!friends.length) return [];
+
     var ctx = {
-      title: episode.title,
-      panelCount: panelCount,
-      panelNo: 1,
-      tag: (episode.tags || [])[0],
-      lastLine: lastLine(episode)
+      title: item.title,
+      kindWord: KIND_WORD[kind],
+      snippet: contentSnippet(item, kind)
     };
-    var rand = mulberry32(hashString(episode.id + "::" + (episode.title || "")));
-    var participantCount = 6 + Math.floor(rand() * 6); // 6~11명
-    var shuffled = FANS.slice().sort(function () {
-      return rand() - 0.5;
-    });
-    var participants = shuffled.slice(0, participantCount);
 
-    var comments = [];
-    participants.forEach(function (fan, idx) {
-      var tpl = pick(rand, fan.templates);
-      var localCtx = Object.assign({}, ctx, { panelNo: 1 + Math.floor(rand() * panelCount) });
-      // rand()^2.2 로 앞쪽(빨리 다는 사람)에 쏠리게 만든다 - 실제 댓글창처럼.
-      var delayMinutes = Math.round(Math.pow(rand(), 2.2) * 48 * 60);
-      var comment = {
-        id: episode.id + "-c" + idx,
-        fanId: fan.id,
-        name: fan.name,
-        emoji: fan.emoji,
-        text: fillTemplate(tpl, localCtx),
+    var DAY_SPAN = 4; // 0~3일차로 순서를 나눈다
+    var comments = friends.map(function (f, idx) {
+      var rand = mulberry32(hashString(item.id + "::" + f.id));
+      var tone = detectTone(f.personality);
+      var pool = (TEMPLATES[tone] && TEMPLATES[tone][kind]) || TEMPLATES.default[kind];
+      var dayIndex = idx % DAY_SPAN;
+      var delayMinutes = dayIndex * 1440 + Math.floor(rand() * 1440);
+      return {
+        id: item.id + "-f-" + f.id,
+        fanId: f.id,
+        name: f.name,
+        emoji: f.emoji,
+        text: fillTemplate(pick(rand, pool), ctx),
         delayMinutes: delayMinutes,
         likes: Math.floor(rand() * 40),
         parentId: null
       };
-      comments.push(comment);
-
-      if (rand() < 0.35) {
-        var replier = pick(
-          rand,
-          FANS.filter(function (f) {
-            return f.id !== fan.id;
-          })
-        );
-        comments.push({
-          id: comment.id + "-r",
-          fanId: replier.id,
-          name: replier.name,
-          emoji: replier.emoji,
-          text: pick(rand, REPLY_TEMPLATES).replace(/\{닉네임\}/g, fan.name),
-          delayMinutes: delayMinutes + 5 + Math.floor(rand() * 115),
-          likes: Math.floor(rand() * 15),
-          parentId: comment.id
-        });
-      }
     });
 
     comments.sort(function (a, b) {
@@ -254,19 +171,20 @@ var Fans = (function () {
     return comments;
   }
 
-  // 지금 이 순간 보여줄 댓글만 골라낸다. publishedAt이 없으면(아직 정식 발행 전
-  // 미리보기 등) 전부 보여준다.
-  function visibleComments(episode) {
-    var all = generateComments(episode);
-    if (!episode.publishedAt) return all;
+  // 지금 이 순간 보여줄 댓글만 골라낸다. 기준 시각(publishedAt/createdAt)이
+  // 없으면(아직 정식 발행 전 미리보기 등) 전부 보여준다.
+  function visibleComments(item, kind) {
+    var all = generateComments(item, kind);
+    var anchor = item.publishedAt || item.createdAt;
+    if (!anchor) return all;
     var now = Date.now();
     return all.filter(function (c) {
-      return now >= episode.publishedAt + c.delayMinutes * 60000;
+      return now >= anchor + c.delayMinutes * 60000;
     });
   }
 
-  function totalCount(episode) {
-    return generateComments(episode).length;
+  function totalCount(item, kind) {
+    return generateComments(item, kind).length;
   }
 
   return {

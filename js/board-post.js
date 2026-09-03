@@ -67,4 +67,5 @@
 
   window.__onAdminLogin = render;
   render();
+  CommentsWidget.mount(post, "board");
 })();

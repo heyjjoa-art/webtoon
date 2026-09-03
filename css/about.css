@@ -80,10 +80,6 @@
   box-shadow: var(--shadow-card);
 }
 
-.friend-card-editing {
-  text-align: left;
-}
-
 .friend-card-editing .field {
   margin-bottom: 8px;
 }
@@ -99,10 +95,6 @@
   justify-content: center;
   font-size: 30px;
   overflow: hidden;
-}
-
-.friend-card-editing .friend-avatar {
-  margin-left: 0;
 }
 
 .friend-avatar img {
@@ -122,6 +114,12 @@
   color: var(--color-text-muted);
   margin-top: 4px;
   word-break: break-word;
+}
+
+.friend-personality {
+  font-size: 11px;
+  color: var(--color-text-faint);
+  margin-top: 4px;
 }
 
 .friend-edit-btn,

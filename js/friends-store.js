@@ -4,11 +4,11 @@
 var FriendsStore = (function () {
   var FRIENDS_KEY = "webtoonFriends";
   var DOC_PATH = "about/friends";
-  var MAX_FRIENDS = 10;
+  var MAX_FRIENDS = 12;
 
   var DEFAULT_FRIENDS = [
-    { id: "friend-huin", name: "흰이", note: "신생아 인형 같은 백곰", emoji: "🐻‍❄️" },
-    { id: "friend-padaki", name: "파닥이", note: "흰이랑 같은 느낌 브라운곰", emoji: "🧸" }
+    { id: "friend-huin", name: "흰이", note: "신생아 인형 같은 백곰", emoji: "🐻‍❄️", personality: "" },
+    { id: "friend-padaki", name: "파닥이", note: "흰이랑 같은 느낌 브라운곰", emoji: "🧸", personality: "" }
   ];
 
   function blankRecord() {
@@ -46,6 +46,7 @@ var FriendsStore = (function () {
       id: "friend-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name: (data.name || "").trim() || "이름 없음",
       note: (data.note || "").trim(),
+      personality: (data.personality || "").trim(),
       emoji: data.emoji || "🐾"
     };
     list.push(friend);

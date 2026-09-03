@@ -50,6 +50,7 @@
         '<button class="btn btn-ghost btn-sm friend-photo-btn" data-id="' + f.id + '">📷 사진 바꾸기</button>' +
         '<div class="field"><input type="text" class="friend-name-input" data-id="' + f.id + '" value="' + escapeHtml(f.name) + '" placeholder="이름"></div>' +
         '<div class="field"><input type="text" class="friend-note-input" data-id="' + f.id + '" value="' + escapeHtml(f.note || "") + '" placeholder="한마디 소개"></div>' +
+        '<div class="field"><input type="text" class="friend-personality-input" data-id="' + f.id + '" value="' + escapeHtml(f.personality || "") + '" placeholder="성격(예: 다정함, 씩씩함, 장난꾸러기, 무뚝뚝함...) - 댓글 말투에 반영돼요"></div>' +
         '<button class="btn btn-primary btn-sm friend-save-btn" data-id="' + f.id + '">저장</button> ' +
         '<button class="btn btn-ghost btn-sm friend-cancel-btn" data-id="' + f.id + '">취소</button>' +
         "</div>"
@@ -60,6 +61,7 @@
       '<div class="friend-avatar" id="friend-avatar-' + f.id + '">' + escapeHtml(f.emoji || "🐾") + "</div>" +
       '<div class="friend-name">' + escapeHtml(f.name) + "</div>" +
       (f.note ? '<div class="friend-note">' + escapeHtml(f.note) + "</div>" : "") +
+      (f.personality ? '<div class="friend-personality">성격: ' + escapeHtml(f.personality) + "</div>" : "") +
       (isAdmin
         ? '<button class="btn btn-ghost btn-sm friend-edit-btn" data-id="' + f.id + '">✏️ 수정</button> ' +
           '<button class="btn btn-ghost btn-sm friend-remove-btn" data-id="' + f.id + '">🗑️ 삭제</button>'
@@ -110,7 +112,8 @@
         var id = btn.dataset.id;
         var name = root.querySelector('.friend-name-input[data-id="' + id + '"]').value;
         var note = root.querySelector('.friend-note-input[data-id="' + id + '"]').value;
-        FriendsStore.updateFriend(id, { name: name.trim() || "이름 없음", note: note.trim() });
+        var personality = root.querySelector('.friend-personality-input[data-id="' + id + '"]').value;
+        FriendsStore.updateFriend(id, { name: name.trim() || "이름 없음", note: note.trim(), personality: personality.trim() });
         editingFriendId = null;
         render();
       });

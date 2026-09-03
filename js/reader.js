@@ -8,7 +8,6 @@
   var canvasEl = document.getElementById("panelCanvas");
   var readerRoot = document.getElementById("readerRoot");
   var lockedView = document.getElementById("lockedView");
-  var shownIds = {};
 
   if (!episode || !EpisodeStore.isVisible(episode)) {
     readerRoot.hidden = true;
@@ -24,7 +23,7 @@
 
   renderCanvas();
   renderNav();
-  startComments();
+  CommentsWidget.mount(episode, "toon");
 
   function renderCanvas() {
     var cw = episode.canvasWidth || 900;
@@ -120,59 +119,4 @@
     else nextBtn.disabled = true;
   }
 
-  function escapeHtml(s) {
-    var div = document.createElement("div");
-    div.textContent = String(s || "");
-    return div.innerHTML;
-  }
-
-  function timeAgoLabel(minutes) {
-    if (minutes < 1) return "방금 전";
-    if (minutes < 60) return minutes + "분 전";
-    var hours = Math.floor(minutes / 60);
-    if (hours < 24) return hours + "시간 전";
-    return Math.floor(hours / 24) + "일 전";
-  }
-
-  function renderComments() {
-    var visible = Fans.visibleComments(episode);
-    var listEl = document.getElementById("commentsList");
-    document.getElementById("commentCount").textContent = visible.length ? "· " + visible.length : "";
-    if (!visible.length) {
-      listEl.innerHTML = '<div class="muted" style="padding:20px 0;">아직 댓글이 없어요. 조금만 기다려보세요!</div>';
-      return;
-    }
-    visible.forEach(function (c) {
-      if (shownIds[c.id]) return;
-      shownIds[c.id] = true;
-      var item = document.createElement("div");
-      item.className = "comment-item" + (c.parentId ? " is-reply" : "");
-      item.innerHTML =
-        '<div class="comment-avatar">' +
-        c.emoji +
-        "</div>" +
-        '<div class="comment-body">' +
-        '<div class="comment-name">' +
-        escapeHtml(c.name) +
-        "</div>" +
-        '<div class="comment-text">' +
-        escapeHtml(c.text) +
-        "</div>" +
-        '<div class="comment-meta">' +
-        timeAgoLabel(Math.max(0, Math.round((Date.now() - (episode.publishedAt + c.delayMinutes * 60000)) / 60000))) +
-        " · ❤ " +
-        c.likes +
-        "</div>" +
-        "</div>";
-      listEl.appendChild(item);
-    });
-    if (listEl.children.length === 0) {
-      listEl.innerHTML = '<div class="muted" style="padding:20px 0;">아직 댓글이 없어요. 조금만 기다려보세요!</div>';
-    }
-  }
-
-  function startComments() {
-    renderComments();
-    setInterval(renderComments, 30000);
-  }
 })();
