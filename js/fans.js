@@ -147,12 +147,13 @@ var Fans = (function () {
     };
 
     var DAY_SPAN = 4; // 0~3일차로 순서를 나눈다
+    var MINUTES_PER_SLOT = 0.5; // TEMP: 테스트용으로 하루(1440)를 30초로 줄여둠 - 확인 후 1440으로 되돌릴 것
     var comments = friends.map(function (f, idx) {
       var rand = mulberry32(hashString(item.id + "::" + f.id));
       var tone = detectTone(f.personality);
       var pool = (TEMPLATES[tone] && TEMPLATES[tone][kind]) || TEMPLATES.default[kind];
       var dayIndex = idx % DAY_SPAN;
-      var delayMinutes = dayIndex * 1440 + Math.floor(rand() * 1440);
+      var delayMinutes = dayIndex * MINUTES_PER_SLOT + rand() * MINUTES_PER_SLOT;
       return {
         id: item.id + "-f-" + f.id,
         fanId: f.id,
