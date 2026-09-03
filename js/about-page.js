@@ -161,7 +161,7 @@
               (isAdmin ? "아직 소개글이 없어요. 적어보세요!" : "아직 소개글이 없어요.") +
               "</div>") +
           (isAdmin ? '<button class="btn btn-ghost btn-sm" id="aboutBioEditBtn" style="margin-top:12px;">✏️ 소개글 수정</button>' : "")) +
-      (isAdmin ? renderFriendsSection(isAdmin) : "");
+      renderFriendsSection(isAdmin);
 
     PanelArtStore.loadPanel("about", "photo").then(function (art) {
       var frame = document.getElementById("aboutPhotoFrame");
@@ -195,7 +195,7 @@
       }
     }
 
-    if (isAdmin) bindFriendEvents(isAdmin);
+    bindFriendEvents(isAdmin);
   }
 
   photoInput.addEventListener("change", function () {
