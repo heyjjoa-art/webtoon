@@ -8,6 +8,7 @@
   var canvasEl = document.getElementById("panelCanvas");
   var readerRoot = document.getElementById("readerRoot");
   var lockedView = document.getElementById("lockedView");
+  var shownIds = {};
 
   if (!episode || !EpisodeStore.isVisible(episode)) {
     readerRoot.hidden = true;
@@ -133,7 +134,6 @@
     return Math.floor(hours / 24) + "일 전";
   }
 
-  var shownIds = {};
   function renderComments() {
     var visible = Fans.visibleComments(episode);
     var listEl = document.getElementById("commentsList");

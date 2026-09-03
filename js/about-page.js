@@ -138,11 +138,10 @@
     var bioRecord = AboutStore.getBio();
 
     root.innerHTML =
-      '<div class="about-photo-frame" id="aboutPhotoFrame">📷' +
+      '<div class="about-photo-frame" id="aboutPhotoFrame">📷</div>' +
       (isAdmin
-        ? '<button class="btn btn-primary btn-sm about-photo-edit-btn" id="aboutPhotoBtn">📷 사진 바꾸기</button>'
+        ? '<button class="btn btn-ghost btn-sm about-photo-edit-btn" id="aboutPhotoBtn">📷 사진 바꾸기</button>'
         : "") +
-      "</div>" +
       (editingBio
         ? '<div class="about-edit-form">' +
           '<div class="field"><textarea id="aboutBioInput" placeholder="나를 소개하는 글을 써보세요">' +
@@ -157,7 +156,7 @@
               (isAdmin ? "아직 소개글이 없어요. 적어보세요!" : "아직 소개글이 없어요.") +
               "</div>") +
           (isAdmin ? '<button class="btn btn-ghost btn-sm" id="aboutBioEditBtn" style="margin-top:12px;">✏️ 소개글 수정</button>' : "")) +
-      renderFriendsSection(isAdmin);
+      (isAdmin ? renderFriendsSection(isAdmin) : "");
 
     PanelArtStore.loadPanel("about", "photo").then(function (art) {
       var frame = document.getElementById("aboutPhotoFrame");
@@ -191,7 +190,7 @@
       }
     }
 
-    bindFriendEvents(isAdmin);
+    if (isAdmin) bindFriendEvents(isAdmin);
   }
 
   photoInput.addEventListener("change", function () {
