@@ -17,7 +17,7 @@
 
     mount.className = "site-nav";
     mount.innerHTML =
-      '<a class="nav-brand" href="index.html">✏️ <span class="nav-brand-text">낙서장</span></a>' +
+      '<a class="nav-brand" href="index.html">✏️ <span class="nav-brand-text">유키의 낙서장</span></a>' +
       '<div class="nav-links">' +
       '<a class="' + linkClass("home") + '" href="index.html">홈</a>' +
       '<a class="' + linkClass("about") + '" href="about.html">나의소개</a>' +
