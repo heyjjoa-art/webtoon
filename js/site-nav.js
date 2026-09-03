@@ -30,7 +30,7 @@
     var pill = mount.querySelector("#navAdminPill");
     function refreshPill() {
       var active = AdminAuth.isActive();
-      pill.textContent = active ? "🔓 관리자" : "🔒 관리자";
+      pill.textContent = active ? "🔓 로그아웃" : "🔒 로그인";
       pill.classList.toggle("active", active);
     }
     refreshPill();

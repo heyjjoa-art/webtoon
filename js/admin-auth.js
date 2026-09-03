@@ -57,6 +57,7 @@ var AdminAuth = (function () {
       "<h2>" +
       (isNew ? "🔐 관리자 PIN 만들기" : "🔐 관리자 PIN 입력") +
       "</h2>" +
+      '<div style="color:var(--color-text-faint);font-size:13px;margin-bottom:12px;">관리자만 로그인할 수 있어요.</div>' +
       '<div class="field"><input type="password" id="authPinInput" inputmode="numeric" placeholder="숫자 4자리 이상" autofocus></div>' +
       '<div id="authPinError" style="color:var(--color-danger);font-size:13px;min-height:18px;margin-bottom:8px;"></div>' +
       '<button class="btn btn-primary" id="authPinGo" style="width:100%">' +
