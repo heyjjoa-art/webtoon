@@ -1,0 +1,18 @@
+// 이 사이트는 서버가 없는 정적 사이트라서 관리자 인증이 "이 기기에 저장된 PIN"
+// 수준의 눈속임 잠금밖에 못 된다(js/admin-auth.js). Firestore 쪽에서 진짜 접근
+// 제어를 하려면 Firebase Authentication이 필요한데, 그러면 로그인 UI가 생기고
+// 지금 사이트의 "그냥 PIN 치고 관리자 화면 쓰기" 흐름과 안 맞는다. 그래서 지금은
+// 읽기/쓰기를 모두 열어두고, 대신 문서 크기(900KB)만 규칙에서 강제한다 -
+// 실수로 통째 이미지를 올려서 요금이 튀는 사고를 막는 최소한의 방어선이다.
+//
+// Firebase 콘솔 > Firestore Database > 규칙 탭에 이 내용을 그대로 붙여넣는다.
+// (테스트 모드로 만들면 30일 뒤 자동으로 막히므로, 그 전에 반드시 교체해야 한다.)
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read: if true;
+      allow write: if request.resource.size() < 950000;
+    }
+  }
+}

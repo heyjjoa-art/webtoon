@@ -1,0 +1,259 @@
+.title-input {
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 700;
+  min-width: 0;
+  flex: 1;
+  max-width: 320px;
+}
+
+.title-input:focus {
+  outline: none;
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: var(--header-h);
+  z-index: 15;
+}
+
+.tb-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding-right: 10px;
+  border-right: 1px solid var(--color-border-soft);
+}
+
+.tb-group:last-child {
+  border-right: none;
+}
+
+.tb-select {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.editor-wrap {
+  display: flex;
+  align-items: flex-start;
+}
+
+.editor-canvas-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.editor-canvas {
+  position: relative;
+  width: 100%;
+  max-width: 700px;
+  min-height: 300px;
+  background: repeating-linear-gradient(
+      0deg,
+      var(--color-border-soft),
+      var(--color-border-soft) 1px,
+      var(--color-surface) 1px,
+      var(--color-surface) 33.3px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      var(--color-border-soft),
+      var(--color-border-soft) 1px,
+      var(--color-surface) 1px,
+      var(--color-surface) 33.3px
+    );
+  border: 1px solid var(--color-border);
+  touch-action: none;
+  user-select: none;
+}
+
+.guide-v,
+.guide-h {
+  position: absolute;
+  background: var(--color-accent);
+  z-index: 500;
+  pointer-events: none;
+}
+
+.guide-v {
+  width: 1px;
+  top: 0;
+  bottom: 0;
+}
+
+.guide-h {
+  height: 1px;
+  left: 0;
+  right: 0;
+}
+
+.ed-panel {
+  position: absolute;
+  overflow: hidden;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  cursor: grab;
+}
+
+.ed-panel img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.ed-panel.fit-contain img {
+  object-fit: contain;
+}
+
+.ed-panel .ep-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-faint);
+  font-size: 22px;
+  pointer-events: none;
+}
+
+.ed-panel.selected {
+  outline: 2px solid var(--color-accent);
+}
+
+.ed-text {
+  position: absolute;
+  padding: 6px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: grab;
+  border: 1px dashed transparent;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ed-text.style-bubble {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1a1a;
+  border-radius: 16px;
+}
+
+.ed-text.style-narration {
+  background: rgba(255, 255, 255, 0.8);
+  color: #1a1a1a;
+  border-radius: 3px;
+}
+
+.ed-text.style-sfx {
+  background: transparent;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 900;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.7), 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.ed-text.selected {
+  outline: 2px solid var(--color-accent);
+}
+
+.resize-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  z-index: 20;
+}
+
+.resize-handle.nw {
+  left: -7px;
+  top: -7px;
+  cursor: nwse-resize;
+}
+.resize-handle.n {
+  left: calc(50% - 7px);
+  top: -7px;
+  cursor: ns-resize;
+}
+.resize-handle.ne {
+  right: -7px;
+  top: -7px;
+  cursor: nesw-resize;
+}
+.resize-handle.e {
+  right: -7px;
+  top: calc(50% - 7px);
+  cursor: ew-resize;
+}
+.resize-handle.se {
+  right: -7px;
+  bottom: -7px;
+  cursor: nwse-resize;
+}
+.resize-handle.s {
+  left: calc(50% - 7px);
+  bottom: -7px;
+  cursor: ns-resize;
+}
+.resize-handle.sw {
+  left: -7px;
+  bottom: -7px;
+  cursor: nesw-resize;
+}
+.resize-handle.w {
+  left: -7px;
+  top: calc(50% - 7px);
+  cursor: ew-resize;
+}
+.resize-handle.tw-e {
+  right: -7px;
+  top: calc(50% - 7px);
+  cursor: ew-resize;
+}
+.resize-handle.tw-w {
+  left: -7px;
+  top: calc(50% - 7px);
+  cursor: ew-resize;
+}
+
+.side-panel {
+  width: 260px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--color-border);
+  min-height: 60vh;
+  padding: 16px;
+}
+
+.side-panel h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+@media (max-width: 860px) {
+  .editor-wrap {
+    flex-direction: column;
+  }
+  .side-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    min-height: auto;
+  }
+}

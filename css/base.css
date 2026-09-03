@@ -1,0 +1,285 @@
+/* ── 공용 레이아웃·버튼·카드. 각 화면 css(home/reader/admin/editor/paint)는
+   여기 클래스를 재사용하고, 화면 고유 스타일만 따로 둔다. ────────────────*/
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(160deg, var(--color-bg-grad-a) 0%, var(--color-bg-grad-b) 55%, var(--color-bg-grad-a) 100%)
+    fixed;
+  background-attachment: fixed;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* 헤더 ------------------------------------------------------------ */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  background: var(--color-header-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.site-header .brand {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 19px;
+  letter-spacing: -0.2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.site-header .spacer {
+  flex: 1;
+}
+
+.sub-header {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 19;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--color-bg-grad-a);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.header-btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  min-height: 34px;
+}
+
+.header-btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-faint);
+}
+
+/* 버튼 -------------------------------------------------------------*/
+.btn {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.06s ease, opacity 0.15s ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: #1a0a0c;
+}
+
+.btn-primary:hover {
+  background: var(--color-accent-active);
+}
+
+.btn-ghost {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-ghost:hover {
+  border-color: var(--color-text-faint);
+}
+
+.btn-danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+}
+
+.btn-sm {
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 999px;
+}
+
+.btn-icon {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+/* 카드 -------------------------------------------------------------*/
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* 폼 ---------------------------------------------------------------*/
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.field label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.field input[type="text"],
+.field input[type="number"],
+.field input[type="password"],
+.field input[type="time"],
+.field textarea,
+.field select {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--color-text);
+  font-size: 14px;
+  font-family: inherit;
+  min-height: 44px;
+}
+
+.field textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+/* 배지 -------------------------------------------------------------*/
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.badge-draft {
+  background: var(--color-surface-soft);
+  color: var(--color-text-faint);
+}
+
+.badge-scheduled {
+  background: var(--color-gold-soft);
+  color: var(--color-gold);
+}
+
+.badge-published {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+/* 유틸 -------------------------------------------------------------*/
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.center-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-text-faint);
+}
+
+.spin {
+  animation: webtoon-spin 0.9s linear infinite;
+  display: inline-block;
+}
+
+@keyframes webtoon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 모달 --------------------------------------------------------------*/
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 380px;
+  padding: 22px;
+}
+
+.modal-box h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}

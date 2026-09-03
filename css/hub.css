@@ -1,0 +1,223 @@
+.hub-hero {
+  padding: 44px 20px 10px;
+  text-align: center;
+  position: relative;
+}
+
+.hub-hero h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 40px;
+  margin: 0 0 6px;
+  color: var(--color-text);
+}
+
+.hub-hero .hub-sub {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--color-text-muted);
+  transform: rotate(-1deg);
+  display: inline-block;
+}
+
+.hub-deco {
+  position: absolute;
+  font-size: 26px;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.hub-deco.a {
+  top: 20px;
+  left: 8%;
+  transform: rotate(-12deg);
+}
+.hub-deco.b {
+  top: 36px;
+  right: 10%;
+  transform: rotate(10deg);
+}
+
+.hub-desk {
+  max-width: 920px;
+  margin: 30px auto 70px;
+  padding: 10px 24px 40px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 40px 34px;
+}
+
+.hub-card {
+  width: 250px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.22s ease;
+  display: block;
+}
+
+.hub-card:hover {
+  transform: rotate(0deg) translateY(-6px) scale(1.035) !important;
+}
+
+.hub-card-label {
+  font-family: var(--font-display);
+  font-size: 15px;
+  margin-top: 10px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* 웹툰: 말풍선 모양 --------------------------------------------------*/
+.hub-card.toon {
+  transform: rotate(-3deg);
+}
+
+.hub-card.toon .hub-card-body {
+  position: relative;
+  background: linear-gradient(160deg, var(--color-toon), var(--color-toon-deep));
+  border-radius: 26px;
+  padding: 22px 20px 26px;
+  color: #fff5ee;
+  box-shadow: var(--shadow-card);
+  min-height: 190px;
+}
+
+.hub-card.toon .hub-card-body::after {
+  content: "";
+  position: absolute;
+  left: 38px;
+  bottom: -16px;
+  width: 0;
+  height: 0;
+  border: 16px solid transparent;
+  border-top-color: var(--color-toon-deep);
+  border-bottom: 0;
+}
+
+.hub-card.toon .hub-icon {
+  font-size: 30px;
+}
+
+.hub-card.toon .hub-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  margin: 6px 0 10px;
+}
+
+.hub-card.toon .hub-preview {
+  font-size: 13px;
+  opacity: 0.92;
+  line-height: 1.5;
+}
+
+/* 그림 게시판: 폴라로이드 -----------------------------------------------*/
+.hub-card.art {
+  transform: rotate(2deg);
+}
+
+.hub-card.art .hub-card-body {
+  position: relative;
+  background: #fffdfa;
+  border-radius: 6px;
+  padding: 12px 12px 16px;
+  box-shadow: var(--shadow-card);
+  min-height: 190px;
+}
+
+.hub-card.art .washi-tape {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-3deg);
+  width: 88px;
+  height: 26px;
+  background: repeating-linear-gradient(45deg, #bdeee5, #bdeee5 6px, #a6e6d9 6px, #a6e6d9 12px);
+  opacity: 0.85;
+  border-radius: 2px;
+}
+
+.hub-card.art .hub-art-frame {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--color-art-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  overflow: hidden;
+}
+
+.hub-card.art .hub-art-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hub-card.art .hub-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--color-art-deep);
+  margin: 10px 0 2px;
+}
+
+.hub-card.art .hub-preview {
+  font-size: 12px;
+  color: var(--color-text-faint);
+}
+
+/* 글 게시판: 줄노트 -----------------------------------------------------*/
+.hub-card.board {
+  transform: rotate(-1.5deg);
+}
+
+.hub-card.board .hub-card-body {
+  position: relative;
+  background: #fffdf6;
+  border-radius: 6px;
+  padding: 20px 18px 20px 30px;
+  box-shadow: var(--shadow-card);
+  min-height: 190px;
+  background-image: linear-gradient(var(--color-board-bg) 0 1px, transparent 1px);
+  background-size: 100% 26px;
+  background-position: 0 54px;
+}
+
+.hub-card.board .hub-card-body::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-danger-border);
+  opacity: 0.6;
+}
+
+.hub-card.board .hub-icon {
+  font-size: 26px;
+}
+
+.hub-card.board .hub-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  color: var(--color-board-deep);
+  margin: 8px 0 10px;
+}
+
+.hub-card.board .hub-preview {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+@media (max-width: 560px) {
+  .hub-hero h1 {
+    font-size: 32px;
+  }
+  .hub-card {
+    width: 100%;
+    max-width: 320px;
+  }
+}

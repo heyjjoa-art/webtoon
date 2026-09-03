@@ -1,0 +1,87 @@
+.admin-section {
+  padding: 18px;
+  margin: 16px 0;
+}
+
+.admin-section h2 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+
+.weekday-picker {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.weekday-chip {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.weekday-chip.on {
+  background: var(--color-accent);
+  color: #1a0a0c;
+  border-color: var(--color-accent);
+  font-weight: 700;
+}
+
+.admin-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px 0 10px;
+}
+
+.admin-list-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.admin-ep-card {
+  padding: 14px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-ep-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-ep-top .title {
+  font-weight: 700;
+  font-size: 15px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-ep-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.schedule-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.schedule-row input {
+  flex: 1;
+}

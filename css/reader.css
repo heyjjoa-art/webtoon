@@ -1,0 +1,145 @@
+.panel-canvas {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--color-bg);
+}
+
+.reader-panel {
+  position: absolute;
+  overflow: hidden;
+  background: var(--color-surface-soft);
+}
+
+.reader-panel img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reader-panel .fit-contain img {
+  object-fit: contain;
+}
+
+.reader-panel .panel-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-faint);
+  font-size: 28px;
+}
+
+.reader-text {
+  position: absolute;
+  padding: 8px 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: keep-word;
+  overflow-wrap: break-word;
+  pointer-events: none;
+}
+
+.reader-text.style-bubble {
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 18px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+.reader-text.style-narration {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1a1a;
+  border-radius: 4px;
+}
+
+.reader-text.style-sfx {
+  background: transparent;
+  color: #fff;
+  font-weight: 900;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.7), 2px 2px 0 rgba(0, 0, 0, 0.5);
+  font-size: 22px;
+}
+
+.episode-nav {
+  display: flex;
+  gap: 10px;
+  padding-top: 20px;
+}
+
+.episode-nav .btn {
+  flex: 1;
+}
+
+.comments-section {
+  padding-top: 28px;
+  padding-bottom: 60px;
+}
+
+.comments-title {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.comment-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border-soft);
+  animation: comment-in 0.35s ease;
+}
+
+.comment-item.is-reply {
+  margin-left: 32px;
+  border-bottom: none;
+  padding-top: 4px;
+}
+
+@keyframes comment-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.comment-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-surface-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-name {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.comment-text {
+  font-size: 14px;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.comment-meta {
+  font-size: 11px;
+  color: var(--color-text-faint);
+  margin-top: 4px;
+}

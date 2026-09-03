@@ -1,0 +1,178 @@
+/* 그림 게시판 · 글 게시판이 함께 쓰는 목록/글보기 스타일. */
+
+.board-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 0 16px;
+}
+
+.board-toolbar h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 24px;
+  margin: 0;
+}
+
+/* 그림 게시판: 살짝 기울어진 폴라로이드 카드 그리드 ------------------- */
+.art-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 18px;
+  padding-bottom: 50px;
+}
+
+.art-card {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 10px 10px 14px;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.art-card:nth-child(3n + 1) {
+  transform: rotate(-2deg);
+}
+.art-card:nth-child(3n + 2) {
+  transform: rotate(1.5deg);
+}
+.art-card:nth-child(3n) {
+  transform: rotate(-1deg);
+}
+
+.art-card:hover {
+  transform: rotate(0deg) scale(1.03);
+  z-index: 2;
+  position: relative;
+}
+
+.art-card .art-thumb {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: var(--color-surface-soft);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  color: var(--color-text-faint);
+}
+
+.art-card .art-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.art-card .art-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 8px;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.art-card .art-date {
+  font-size: 11px;
+  color: var(--color-text-faint);
+  margin-top: 2px;
+}
+
+/* 글 게시판: 노트 줄 무늬 리스트 -------------------------------------- */
+.text-list {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 50px;
+}
+
+.text-list-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 6px;
+  border-bottom: 1px dashed var(--color-border);
+  cursor: pointer;
+}
+
+.text-list-item:hover .text-list-title {
+  color: var(--color-board-deep);
+}
+
+.text-list-title {
+  font-weight: 700;
+  font-size: 15px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-list-date {
+  font-size: 12px;
+  color: var(--color-text-faint);
+  flex-shrink: 0;
+}
+
+/* 글 하나 보기 ---------------------------------------------------------*/
+.post-prose {
+  padding: 10px 4px 60px;
+}
+
+.post-prose .post-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 26px;
+  margin: 6px 0 4px;
+}
+
+.post-prose .post-meta {
+  color: var(--color-text-faint);
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.post-prose .post-body {
+  font-size: 15.5px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.post-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.art-post-image {
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface-soft);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 16px;
+}
+
+.art-post-image img {
+  width: 100%;
+  display: block;
+}
+
+/* 글쓰기 폼 --------------------------------------------------------- */
+.write-form {
+  padding: 20px;
+  margin: 16px 0 40px;
+}
+
+.write-form textarea {
+  min-height: 320px;
+  font-size: 15px;
+  line-height: 1.7;
+}

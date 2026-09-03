@@ -1,0 +1,6 @@
+# 작업용 원본 그림, OS/에디터 잡파일
+/raw/
+/work/
+.DS_Store
+Thumbs.db
+*.log

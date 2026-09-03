@@ -1,0 +1,63 @@
+@import url("https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap");
+
+/* ── 디자인 토큰: "책상 위 스크랩북" 컨셉 ─────────────────────────────
+   라벤더~하늘 파스텔 배경 위에 웹툰(코랄)·그림(민트)·글(버터옐로) 세 구역이
+   각자 다른 색을 가진 채 뒤섞여 있는 다이어리 느낌. 새 색이 필요하면 여기
+   토큰을 먼저 찾아 재사용하고, 정말 새 의미가 필요할 때만 늘린다. */
+:root {
+  --color-bg: #f3ecff;
+  --color-bg-grad-a: #efe6ff;
+  --color-bg-grad-b: #e3f5ff;
+  --color-surface: #fffdf9;
+  --color-surface-soft: #f7f1ff;
+  --color-header-bg: #fffdf9;
+
+  --color-text: #362f4a;
+  --color-text-muted: #6b6280;
+  --color-text-faint: #948a9e;
+  --color-text-placeholder: #bcb3c9;
+
+  --color-border: #e6dcf7;
+  --color-border-soft: #f0e9fa;
+
+  --color-accent: #ff8a5b;
+  --color-accent-active: #ff6b3d;
+  --color-accent-soft: #ffd9c4;
+  --color-accent-deep: #c24e24;
+
+  --color-gold: #ffc24b;
+  --color-gold-soft: #ffefc7;
+
+  --color-success: #1fa98d;
+  --color-success-bg: #defbf3;
+  --color-success-border: #9be3d3;
+
+  --color-danger: #e4574a;
+  --color-danger-bg: #fde7e4;
+  --color-danger-border: #f3b8b0;
+
+  --color-info: #4c8dff;
+  --color-info-bg: #e8f0ff;
+
+  /* 세 게시판 각자의 색 */
+  --color-toon: #ff8a5b;
+  --color-toon-deep: #ff6b3d;
+  --color-toon-bg: #fff0e6;
+  --color-art: #22b8a6;
+  --color-art-deep: #159384;
+  --color-art-bg: #e2fbf6;
+  --color-board: #f0ac1e;
+  --color-board-deep: #cf8f0f;
+  --color-board-bg: #fff3d9;
+
+  --radius-lg: 22px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+  --shadow-card: 0 6px 18px rgba(120, 90, 190, 0.14);
+  --shadow-pop: 0 16px 40px rgba(120, 90, 190, 0.24);
+
+  --header-h: 56px;
+  --font-display: "Jua", var(--font-ui);
+  --font-ui: "Gowun Dodum", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+    "Malgun Gothic", sans-serif;
+}
