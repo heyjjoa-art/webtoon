@@ -138,3 +138,10 @@
   color: var(--color-text-faint);
   text-align: right;
 }
+
+.admin-settings {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+}

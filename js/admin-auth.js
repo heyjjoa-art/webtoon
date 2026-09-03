@@ -102,12 +102,61 @@ var AdminAuth = (function () {
     location.reload();
   }
 
+  // 이미 관리자로 로그인된 상태에서 PIN을 바꾼다 - 현재 PIN 확인 -> 새 PIN
+  // 두 번 입력받아 일치하는지 확인 후 저장한다.
+  function changePin() {
+    var overlay = document.createElement("div");
+    overlay.className = "modal-backdrop";
+    overlay.innerHTML =
+      '<div class="card modal-box">' +
+      "<h2>🔐 관리자 PIN 변경</h2>" +
+      '<div class="field"><input type="password" id="pinChangeCurrent" inputmode="numeric" placeholder="현재 PIN" autofocus></div>' +
+      '<div class="field"><input type="password" id="pinChangeNew" inputmode="numeric" placeholder="새 PIN (숫자 4자리 이상)"></div>' +
+      '<div class="field"><input type="password" id="pinChangeNew2" inputmode="numeric" placeholder="새 PIN 다시 입력"></div>' +
+      '<div id="pinChangeError" style="color:var(--color-danger);font-size:13px;min-height:18px;margin-bottom:8px;"></div>' +
+      '<button class="btn btn-primary" id="pinChangeGo" style="width:100%">변경하기</button> ' +
+      '<button class="btn btn-ghost" id="pinChangeCancel" style="width:100%;margin-top:8px;">취소</button>' +
+      "</div>";
+    document.body.appendChild(overlay);
+    var curEl = overlay.querySelector("#pinChangeCurrent");
+    var newEl = overlay.querySelector("#pinChangeNew");
+    var new2El = overlay.querySelector("#pinChangeNew2");
+    var err = overlay.querySelector("#pinChangeError");
+    function submit() {
+      if (!verifyPin(curEl.value.trim())) {
+        err.textContent = "현재 PIN이 맞지 않아요.";
+        return;
+      }
+      var next = newEl.value.trim();
+      if (next.length < 4) {
+        err.textContent = "새 PIN은 4자리 이상으로 만들어주세요.";
+        return;
+      }
+      if (next !== new2El.value.trim()) {
+        err.textContent = "새 PIN이 서로 달라요.";
+        return;
+      }
+      setPin(next);
+      overlay.remove();
+    }
+    overlay.querySelector("#pinChangeGo").addEventListener("click", submit);
+    overlay.querySelector("#pinChangeCancel").addEventListener("click", function () {
+      overlay.remove();
+    });
+    [curEl, newEl, new2El].forEach(function (el) {
+      el.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") submit();
+      });
+    });
+  }
+
   return {
     hasPin: hasPin,
     setPin: setPin,
     verifyPin: verifyPin,
     isActive: isActive,
     guard: guard,
-    logout: logout
+    logout: logout,
+    changePin: changePin
   };
 })();

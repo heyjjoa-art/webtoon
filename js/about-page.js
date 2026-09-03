@@ -161,7 +161,10 @@
               (isAdmin ? "아직 소개글이 없어요. 적어보세요!" : "아직 소개글이 없어요.") +
               "</div>") +
           (isAdmin ? '<button class="btn btn-ghost btn-sm" id="aboutBioEditBtn" style="margin-top:12px;">✏️ 소개글 수정</button>' : "")) +
-      renderFriendsSection(isAdmin);
+      renderFriendsSection(isAdmin) +
+      (isAdmin
+        ? '<div class="admin-settings"><button class="btn btn-ghost btn-sm" id="pinChangeBtn">🔐 관리자 PIN 변경</button></div>'
+        : "");
 
     PanelArtStore.loadPanel("about", "photo").then(function (art) {
       var frame = document.getElementById("aboutPhotoFrame");
@@ -193,6 +196,9 @@
           render();
         });
       }
+      document.getElementById("pinChangeBtn").addEventListener("click", function () {
+        AdminAuth.changePin();
+      });
     }
 
     bindFriendEvents(isAdmin);
