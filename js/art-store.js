@@ -33,6 +33,7 @@ var ArtStore = (function () {
       id: genId(),
       title: title || "제목 없음",
       caption: "",
+      category: null,
       canvasWidth: CANVAS_W,
       canvasHeight: CANVAS_H,
       createdAt: Date.now(),
@@ -117,7 +118,46 @@ var ArtStore = (function () {
     });
   }
 
+  // ── 탭(카테고리) — 최대 5개, board-store.js와 같은 방식(별도 컬렉션 경로) ──
+  var CATS_KEY = "webtoonArtCategories";
+  var CATS_DOC = "artMeta/categories";
+
+  function getCategories() {
+    var raw = localStorage.getItem(CATS_KEY);
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw) || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveCategories(list) {
+    localStorage.setItem(CATS_KEY, JSON.stringify(list));
+    Cloud.writeDoc(CATS_DOC, { list: list, updatedAt: Date.now() });
+    if (window.__webtoonOnArtCategoriesChanged) window.__webtoonOnArtCategoriesChanged();
+  }
+
+  function bootstrapCategories() {
+    if (!Cloud.enabled) return;
+    Cloud.getDocOnce(CATS_DOC).then(function (remote) {
+      var local = getCategories();
+      if (remote && remote.list) {
+        localStorage.setItem(CATS_KEY, JSON.stringify(remote.list));
+        if (window.__webtoonOnArtCategoriesChanged) window.__webtoonOnArtCategoriesChanged();
+      } else if (local.length) {
+        Cloud.writeDoc(CATS_DOC, { list: local, updatedAt: Date.now() });
+      }
+      Cloud.watchDoc(CATS_DOC, function (remoteDoc) {
+        if (!remoteDoc) return;
+        localStorage.setItem(CATS_KEY, JSON.stringify(remoteDoc.list || []));
+        if (window.__webtoonOnArtCategoriesChanged) window.__webtoonOnArtCategoriesChanged();
+      });
+    });
+  }
+
   bootstrap();
+  bootstrapCategories();
 
   return {
     blankPost: blankPost,
@@ -125,6 +165,8 @@ var ArtStore = (function () {
     savePost: savePost,
     deletePost: deletePost,
     listPosts: listPosts,
+    getCategories: getCategories,
+    saveCategories: saveCategories,
     CANVAS_W: CANVAS_W,
     CANVAS_H: CANVAS_H
   };

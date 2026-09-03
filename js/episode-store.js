@@ -1,13 +1,15 @@
-// 시리즈 정보와 회차 메타데이터(그림은 절대 포함하지 않음 - panel-art-store.js가
-// 담당)를 localStorage에 우선 저장하고 Firestore와 맞춘다. journeys 앱에서 검증된
-// "로컬 우선 쓰기 → 클라우드 동기화, bootstrap 때는 덮어쓰기가 아니라 병합" 패턴을
+// 회차 메타데이터(그림은 절대 포함하지 않음 - panel-art-store.js가 담당)를
+// localStorage에 우선 저장하고 Firestore와 맞춘다. journeys 앱에서 검증된 "로컬
+// 우선 쓰기 → 클라우드 동기화, bootstrap 때는 덮어쓰기가 아니라 병합" 패턴을
 // 그대로 따른다: 이 기기가 방금 쓴 변경의 echo(hasPendingWrites)는 건너뛰고, 로컬이
 // 더 최신이면 로컬을 살리고, 로컬에만 있는 최근 문서는 다시 밀어올린다.
+//
+// 시리즈 여러 개를 다루므로(series-store.js) 회차마다 seriesId를 갖고, 컬렉션은
+// 여전히 하나(flat)로 두고 클라이언트에서 seriesId로 걸러본다 - 이 앱 전체가
+// 쓰는 방식과 같다. 회차 id/번호(no)는 시리즈 단위로 매겨진다.
 var EpisodeStore = (function () {
   var EPISODES_KEY = "webtoonEpisodes";
-  var SERIES_KEY = "webtoonSeries";
   var EPISODES_COLLECTION = "episodes";
-  var SERIES_PATH = "series/meta";
   var RECENT_LOCAL_ONLY_MS = 5 * 60 * 1000;
 
   function loadAll() {
@@ -24,19 +26,21 @@ var EpisodeStore = (function () {
     localStorage.setItem(EPISODES_KEY, JSON.stringify(map));
   }
 
-  function nextNo() {
+  function nextNo(seriesId) {
     var all = loadAll();
     var max = 0;
     Object.keys(all).forEach(function (id) {
-      var n = Number(all[id].no) || 0;
+      var ep = all[id];
+      if (ep.seriesId !== seriesId) return;
+      var n = Number(ep.no) || 0;
       if (n > max) max = n;
     });
     return max + 1;
   }
 
-  function makeId(no) {
+  function makeId(seriesId, no) {
     var all = loadAll();
-    var base = "ep-" + no;
+    var base = seriesId + "__ep-" + no;
     var id = base;
     var n = 2;
     while (all[id]) {
@@ -46,10 +50,11 @@ var EpisodeStore = (function () {
     return id;
   }
 
-  function blankEpisode() {
-    var no = nextNo();
+  function blankEpisode(seriesId) {
+    var no = nextNo(seriesId);
     return {
-      id: makeId(no),
+      id: makeId(seriesId, no),
+      seriesId: seriesId,
       no: no,
       title: "",
       summary: "",
@@ -91,13 +96,26 @@ var EpisodeStore = (function () {
     if (window.__webtoonOnEpisodesChanged) window.__webtoonOnEpisodesChanged();
   }
 
-  function listEpisodes() {
+  // 시리즈 자체를 지울 때(series-store.js) 그 안의 회차를 전부 정리한다. 마찬가지
+  // 이유로, series-store.js가 시리즈 문서를 지우기 전에 이걸 먼저 불러야 한다.
+  function deleteEpisodesForSeries(seriesId) {
+    listEpisodes(seriesId).forEach(function (ep) {
+      deleteEpisode(ep.id);
+    });
+  }
+
+  // seriesId를 안 넘기면 전체 회차를(주로 없음), 넘기면 그 시리즈 것만 최신 화
+  // 순으로 돌려준다.
+  function listEpisodes(seriesId) {
     var all = loadAll();
     return Object.keys(all)
       .map(function (id) {
         var ep = all[id];
         if (!ep.id) ep = Object.assign({}, ep, { id: id });
         return ep;
+      })
+      .filter(function (ep) {
+        return seriesId == null || ep.seriesId === seriesId;
       })
       .sort(function (a, b) {
         return (b.no || 0) - (a.no || 0);
@@ -179,64 +197,18 @@ var EpisodeStore = (function () {
     });
   }
 
-  // ── 시리즈 정보(표지·연재 요일) ──────────────────────────────────
-  function getSeries() {
-    var raw = localStorage.getItem(SERIES_KEY);
-    var fallback = {
-      title: "제목 없는 웹툰",
-      tagline: "",
-      scheduleDays: [2, 5],
-      scheduleHour: 19,
-      updatedAt: 0
-    };
-    if (!raw) return fallback;
-    try {
-      return Object.assign(fallback, JSON.parse(raw));
-    } catch (e) {
-      return fallback;
-    }
-  }
-
-  function saveSeries(series) {
-    var merged = Object.assign({}, getSeries(), series, { updatedAt: Date.now() });
-    localStorage.setItem(SERIES_KEY, JSON.stringify(merged));
-    Cloud.writeDoc(SERIES_PATH, merged);
-    if (window.__webtoonOnSeriesChanged) window.__webtoonOnSeriesChanged();
-    return merged;
-  }
-
-  function bootstrapSeriesSync() {
-    if (!Cloud.enabled) return;
-    Cloud.getDocOnce(SERIES_PATH).then(function (remote) {
-      var local = getSeries();
-      if (remote && (remote.updatedAt || 0) >= (local.updatedAt || 0)) {
-        localStorage.setItem(SERIES_KEY, JSON.stringify(remote));
-        if (window.__webtoonOnSeriesChanged) window.__webtoonOnSeriesChanged();
-      } else if (local.updatedAt) {
-        Cloud.writeDoc(SERIES_PATH, local);
-      }
-      Cloud.watchDoc(SERIES_PATH, function (remoteDoc) {
-        if (!remoteDoc) return;
-        localStorage.setItem(SERIES_KEY, JSON.stringify(remoteDoc));
-        if (window.__webtoonOnSeriesChanged) window.__webtoonOnSeriesChanged();
-      });
-    });
-  }
-
   bootstrapEpisodeSync();
-  bootstrapSeriesSync();
 
   return {
     blankEpisode: blankEpisode,
     getEpisode: getEpisode,
     saveEpisode: saveEpisode,
     deleteEpisode: deleteEpisode,
+    deleteEpisodesForSeries: deleteEpisodesForSeries,
     listEpisodes: listEpisodes,
     isVisible: isVisible,
     publishNow: publishNow,
     schedule: schedule,
-    unpublish: unpublish,
-    getSeries: getSeries,
-    saveSeries: saveSeries
+    unpublish: unpublish
   };
 })();

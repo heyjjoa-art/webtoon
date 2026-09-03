@@ -29,6 +29,7 @@ var BoardStore = (function () {
       id: genId(),
       title: "",
       body: "",
+      category: null,
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -111,13 +112,54 @@ var BoardStore = (function () {
     });
   }
 
+  // ── 탭(카테고리) — 최대 5개, "일기"/"나의생각"처럼 글을 나눠 담는 용도 ──
+  var CATS_KEY = "webtoonBoardCategories";
+  var CATS_DOC = "boardMeta/categories";
+
+  function getCategories() {
+    var raw = localStorage.getItem(CATS_KEY);
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw) || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveCategories(list) {
+    localStorage.setItem(CATS_KEY, JSON.stringify(list));
+    Cloud.writeDoc(CATS_DOC, { list: list, updatedAt: Date.now() });
+    if (window.__webtoonOnBoardCategoriesChanged) window.__webtoonOnBoardCategoriesChanged();
+  }
+
+  function bootstrapCategories() {
+    if (!Cloud.enabled) return;
+    Cloud.getDocOnce(CATS_DOC).then(function (remote) {
+      var local = getCategories();
+      if (remote && remote.list) {
+        localStorage.setItem(CATS_KEY, JSON.stringify(remote.list));
+        if (window.__webtoonOnBoardCategoriesChanged) window.__webtoonOnBoardCategoriesChanged();
+      } else if (local.length) {
+        Cloud.writeDoc(CATS_DOC, { list: local, updatedAt: Date.now() });
+      }
+      Cloud.watchDoc(CATS_DOC, function (remoteDoc) {
+        if (!remoteDoc) return;
+        localStorage.setItem(CATS_KEY, JSON.stringify(remoteDoc.list || []));
+        if (window.__webtoonOnBoardCategoriesChanged) window.__webtoonOnBoardCategoriesChanged();
+      });
+    });
+  }
+
   bootstrap();
+  bootstrapCategories();
 
   return {
     blankPost: blankPost,
     getPost: getPost,
     savePost: savePost,
     deletePost: deletePost,
-    listPosts: listPosts
+    listPosts: listPosts,
+    getCategories: getCategories,
+    saveCategories: saveCategories
   };
 })();

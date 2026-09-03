@@ -22,14 +22,24 @@
     return d.getFullYear() + "." + (d.getMonth() + 1) + "." + d.getDate();
   }
 
+  function categoryName(id) {
+    if (!id) return null;
+    var found = BoardStore.getCategories().filter(function (c) {
+      return c.id === id;
+    })[0];
+    return found ? found.name : null;
+  }
+
   function render() {
     document.title = (post.title || "글") + " - 낙서장";
     var isAdmin = AdminAuth.isActive();
+    var catName = categoryName(post.category);
     root.innerHTML =
       '<h1 class="post-title">' +
       escapeHtml(post.title) +
       "</h1>" +
       '<div class="post-meta">' +
+      (catName ? escapeHtml(catName) + " · " : "") +
       formatDate(post.createdAt) +
       "</div>" +
       '<div class="post-body">' +

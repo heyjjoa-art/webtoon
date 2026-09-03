@@ -18,6 +18,8 @@
 
   document.getElementById("epTitle").textContent = episode.no + "화 · " + (episode.title || "");
   document.title = episode.title + " - 낙서장";
+  var backLink = document.getElementById("backLink");
+  if (backLink && episode.seriesId) backLink.href = "toon-series.html?series=" + encodeURIComponent(episode.seriesId);
 
   renderCanvas();
   renderNav();
@@ -93,7 +95,7 @@
   }
 
   function renderNav() {
-    var all = EpisodeStore.listEpisodes()
+    var all = EpisodeStore.listEpisodes(episode.seriesId)
       .filter(function (ep) {
         return EpisodeStore.isVisible(ep);
       })

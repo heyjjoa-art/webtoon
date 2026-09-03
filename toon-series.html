@@ -3,34 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>웹툰 관리 - 낙서장</title>
+  <title>웹툰 - 낙서장</title>
   <link rel="stylesheet" href="css/tokens.css?v=202609031608" />
   <link rel="stylesheet" href="css/base.css?v=202609031608" />
   <link rel="stylesheet" href="css/nav.css?v=202609031608" />
-  <link rel="stylesheet" href="css/admin.css?v=202609031608" />
+  <link rel="stylesheet" href="css/toon.css?v=202609031608" />
 </head>
 <body data-page="toon">
   <div id="siteNav"></div>
+  <header class="sub-header">
+    <a class="header-btn" href="toon.html">← 웹툰 목록</a>
+  </header>
 
-  <!-- 시리즈를 고르지 않았을 때: 시리즈 목록 관리 화면 -->
-  <div class="container" id="seriesListRoot" hidden>
-    <div class="admin-list-head">
-      <h2>웹툰 시리즈</h2>
-      <button class="btn btn-primary btn-sm" id="newSeriesBtn">+ 새 시리즈</button>
-    </div>
-    <div id="seriesAdminList"></div>
-  </div>
-
-  <!-- 시리즈를 골랐을 때: 그 시리즈의 설정 + 회차 관리 화면 -->
-  <div class="container" id="episodeAdminRoot" hidden>
-    <a class="header-btn" href="admin.html" style="margin:12px 0;display:inline-block;">← 전체 시리즈</a>
-    <section class="card admin-section" id="seriesSection"></section>
-
-    <div class="admin-list-head">
-      <h2>회차</h2>
-      <button class="btn btn-primary btn-sm" id="newEpisodeBtn">+ 새 회차</button>
-    </div>
-    <div id="episodeAdminList"></div>
+  <div class="container">
+    <section class="series-banner card" id="seriesBanner"></section>
+    <section id="episodeList" class="episode-list"></section>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -41,7 +28,8 @@
   <script src="js/series-store.js?v=202609031608"></script>
   <script src="js/episode-store.js?v=202609031608"></script>
   <script src="js/panel-art-store.js?v=202609031608"></script>
+  <script src="js/fans.js?v=202609031608"></script>
   <script src="js/site-nav.js?v=202609031608"></script>
-  <script src="js/admin.js?v=202609031608"></script>
+  <script src="js/toon-series-home.js?v=202609031608"></script>
 </body>
 </html>

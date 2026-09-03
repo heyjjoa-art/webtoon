@@ -1,6 +1,8 @@
 (function () {
   "use strict";
 
+  var activeCategory = null;
+
   function escapeHtml(s) {
     var div = document.createElement("div");
     div.textContent = String(s || "");
@@ -12,8 +14,26 @@
     return d.getMonth() + 1 + "." + d.getDate();
   }
 
-  function render() {
-    var posts = BoardStore.listPosts();
+  function renderTabs() {
+    CategoryUI.renderTabs(document.getElementById("categoryTabs"), BoardStore.getCategories(), activeCategory, function (id) {
+      activeCategory = id;
+      renderTabs();
+      renderList();
+    }, {
+      isAdmin: AdminAuth.isActive(),
+      getCategories: BoardStore.getCategories,
+      saveCategories: BoardStore.saveCategories,
+      onManaged: function () {
+        renderTabs();
+        renderList();
+      }
+    });
+  }
+
+  function renderList() {
+    var posts = BoardStore.listPosts().filter(function (p) {
+      return !activeCategory || p.category === activeCategory;
+    });
     var listEl = document.getElementById("postList");
     if (!posts.length) {
       listEl.innerHTML = '<div class="center-empty">아직 쓴 글이 없어요. 첫 글을 남겨보세요 ✍️</div>';
@@ -41,10 +61,13 @@
 
   document.getElementById("newPostBtn").addEventListener("click", function () {
     AdminAuth.guard(function () {
-      location.href = "board-write.html";
+      location.href = "board-write.html" + (activeCategory ? "?category=" + encodeURIComponent(activeCategory) : "");
     });
   });
 
-  window.__webtoonOnBoardChanged = render;
-  render();
+  window.__webtoonOnBoardChanged = renderList;
+  window.__webtoonOnBoardCategoriesChanged = renderTabs;
+  window.__onAdminLogin = renderTabs;
+  renderTabs();
+  renderList();
 })();

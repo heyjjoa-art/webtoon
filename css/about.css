@@ -1,0 +1,49 @@
+.about-wrap {
+  padding-top: 20px;
+  padding-bottom: 60px;
+  max-width: 480px;
+}
+
+.about-photo-frame {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-soft);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 46px;
+  color: var(--color-text-faint);
+  margin-bottom: 18px;
+  position: relative;
+}
+
+.about-photo-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.about-photo-edit-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+}
+
+.about-bio {
+  font-size: 15.5px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--color-text);
+}
+
+.about-bio-empty {
+  color: var(--color-text-faint);
+}
+
+.about-edit-form textarea {
+  min-height: 180px;
+}

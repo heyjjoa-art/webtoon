@@ -4,28 +4,42 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>웹툰 - 낙서장</title>
-  <link rel="stylesheet" href="css/tokens.css?v=202609031516" />
-  <link rel="stylesheet" href="css/base.css?v=202609031516" />
-  <link rel="stylesheet" href="css/nav.css?v=202609031516" />
-  <link rel="stylesheet" href="css/toon.css?v=202609031516" />
+  <link rel="stylesheet" href="css/tokens.css?v=202609031608" />
+  <link rel="stylesheet" href="css/base.css?v=202609031608" />
+  <link rel="stylesheet" href="css/nav.css?v=202609031608" />
+  <link rel="stylesheet" href="css/toon.css?v=202609031608" />
 </head>
 <body data-page="toon">
   <div id="siteNav"></div>
 
   <div class="container">
-    <section class="series-banner card" id="seriesBanner"></section>
-    <section id="episodeList" class="episode-list"></section>
+    <div class="board-toolbar" style="margin-bottom:4px;">
+      <h1 style="font-family:var(--font-display);font-weight:400;font-size:24px;margin:0;">💬 웹툰</h1>
+      <button class="btn btn-primary btn-sm" id="newSeriesBtn">+ 새 시리즈</button>
+    </div>
+
+    <div id="ongoingSection" hidden>
+      <div class="series-section-title">🟢 지금 연재중</div>
+      <div id="ongoingGrid" class="series-featured-grid"></div>
+    </div>
+
+    <div id="otherSection" hidden>
+      <div class="series-section-title">다른 작품</div>
+      <div id="otherGrid" class="series-compact-grid"></div>
+    </div>
+
+    <div id="emptyState" class="center-empty" hidden>아직 웹툰이 없어요. 첫 시리즈를 만들어보세요!</div>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="js/firebase-config.js?v=202609031516"></script>
-  <script src="js/cloud.js?v=202609031516"></script>
-  <script src="js/admin-auth.js?v=202609031516"></script>
-  <script src="js/episode-store.js?v=202609031516"></script>
-  <script src="js/panel-art-store.js?v=202609031516"></script>
-  <script src="js/fans.js?v=202609031516"></script>
-  <script src="js/site-nav.js?v=202609031516"></script>
-  <script src="js/toon-home.js?v=202609031516"></script>
+  <script src="js/firebase-config.js?v=202609031608"></script>
+  <script src="js/cloud.js?v=202609031608"></script>
+  <script src="js/admin-auth.js?v=202609031608"></script>
+  <script src="js/series-store.js?v=202609031608"></script>
+  <script src="js/episode-store.js?v=202609031608"></script>
+  <script src="js/panel-art-store.js?v=202609031608"></script>
+  <script src="js/site-nav.js?v=202609031608"></script>
+  <script src="js/toon-list.js?v=202609031608"></script>
 </body>
 </html>

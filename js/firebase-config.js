@@ -4,10 +4,10 @@
 // 로컬 전용 모드로 조용히 동작한다 - 그러니 이 파일을 채우기 전에도 사이트 전체가
 // 정상적으로 동작한다.
 var WEBTOON_FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyActasAogXGDNhMYyVGYTGLebtQdLvm9YA",
+  authDomain: "webtoon-726c1.firebaseapp.com",
+  projectId: "webtoon-726c1",
+  storageBucket: "webtoon-726c1.firebasestorage.app",
+  messagingSenderId: "29262672030",
+  appId: "1:29262672030:web:3e6ef5f91eb7a9508bcb8f"
 };

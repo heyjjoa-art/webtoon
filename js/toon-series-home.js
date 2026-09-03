@@ -1,17 +1,27 @@
 (function () {
   "use strict";
 
+  var params = new URLSearchParams(location.search);
+  var seriesId = params.get("series");
+  var series = seriesId ? SeriesStore.getSeries(seriesId) : null;
+
+  if (!series) {
+    location.href = "toon.html";
+    return;
+  }
+
   var WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
 
-  function nextScheduledDate(series, now) {
-    var days = (series.scheduleDays || []).slice().sort();
+  function nextScheduledDate(s, now) {
+    if (s.status !== "ongoing") return null;
+    var days = (s.scheduleDays || []).slice().sort();
     if (!days.length) return null;
     for (var offset = 0; offset < 15; offset++) {
       var d = new Date(now);
       d.setHours(0, 0, 0, 0);
       d.setDate(d.getDate() + offset);
       if (days.indexOf(d.getDay()) === -1) continue;
-      d.setHours(series.scheduleHour || 19, 0, 0, 0);
+      d.setHours(s.scheduleHour || 19, 0, 0, 0);
       if (d.getTime() > now.getTime()) return d;
     }
     return null;
@@ -27,28 +37,7 @@
     return "D-" + diffDays + " · " + weekday + "요일 " + timeLabel;
   }
 
-  function renderBanner() {
-    var series = EpisodeStore.getSeries();
-    var el = document.getElementById("seriesBanner");
-    document.title = (series.title || "웹툰") + " - 낙서장";
-
-    var next = nextScheduledDate(series, new Date());
-    el.innerHTML =
-      "<h1>" +
-      escapeHtml(series.title || "제목 없는 웹툰") +
-      "</h1>" +
-      (series.tagline ? '<div class="tagline">' + escapeHtml(series.tagline) + "</div>" : "") +
-      (next
-        ? '<div class="next-episode">🗓️ 다음 회차 <span class="dday">' +
-          formatDday(next, new Date()) +
-          "</span></div>"
-        : "") +
-      (typeof AdminAuth !== "undefined" && AdminAuth.isActive()
-        ? '<a class="btn btn-primary btn-sm" href="admin.html" style="margin-top:12px;">✍️ 회차 관리</a>'
-        : "");
-  }
-
-  window.__onAdminLogin = renderBanner;
+  var STATUS_LABEL = { ongoing: "🟢 연재중", paused: "⏸ 휴재", ended: "🏁 완결" };
 
   function escapeHtml(s) {
     var div = document.createElement("div");
@@ -56,8 +45,37 @@
     return div.innerHTML;
   }
 
+  function renderBanner() {
+    series = SeriesStore.getSeries(seriesId) || series;
+    var el = document.getElementById("seriesBanner");
+    document.title = (series.title || "웹툰") + " - 낙서장";
+
+    var next = nextScheduledDate(series, new Date());
+    el.innerHTML =
+      "<h1>" +
+      escapeHtml(series.title || "제목 없는 웹툰") +
+      ' <span class="badge badge-' +
+      (series.status === "ongoing" ? "published" : series.status === "ended" ? "draft" : "scheduled") +
+      '" style="vertical-align:middle;">' +
+      STATUS_LABEL[series.status] +
+      "</span></h1>" +
+      (series.tagline ? '<div class="tagline">' + escapeHtml(series.tagline) + "</div>" : "") +
+      (next
+        ? '<div class="next-episode">🗓️ 다음 회차 <span class="dday">' +
+          formatDday(next, new Date()) +
+          "</span></div>"
+        : "") +
+      (typeof AdminAuth !== "undefined" && AdminAuth.isActive()
+        ? '<a class="btn btn-primary btn-sm" href="admin.html?series=' +
+          encodeURIComponent(seriesId) +
+          '" style="margin-top:12px;">✍️ 이 시리즈 관리</a>'
+        : "");
+  }
+
+  window.__onAdminLogin = renderBanner;
+  window.__webtoonOnSeriesListChanged = renderBanner;
+
   function episodeCardHtml(ep, visible) {
-    var badge = "";
     var lockNote = "";
     if (!visible) {
       var when = ep.publishAt ? new Date(ep.publishAt) : null;
@@ -96,7 +114,7 @@
   }
 
   function renderList() {
-    var episodes = EpisodeStore.listEpisodes().filter(function (ep) {
+    var episodes = EpisodeStore.listEpisodes(seriesId).filter(function (ep) {
       return ep.status !== "draft";
     });
     var listEl = document.getElementById("episodeList");
@@ -140,7 +158,6 @@
   }
 
   window.__webtoonOnEpisodesChanged = renderList;
-  window.__webtoonOnSeriesChanged = renderBanner;
 
   renderBanner();
   renderList();

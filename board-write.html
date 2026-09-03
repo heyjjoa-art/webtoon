@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>글쓰기 - 낙서장</title>
-  <link rel="stylesheet" href="css/tokens.css?v=202609031516" />
-  <link rel="stylesheet" href="css/base.css?v=202609031516" />
-  <link rel="stylesheet" href="css/nav.css?v=202609031516" />
-  <link rel="stylesheet" href="css/list.css?v=202609031516" />
+  <link rel="stylesheet" href="css/tokens.css?v=202609031608" />
+  <link rel="stylesheet" href="css/base.css?v=202609031608" />
+  <link rel="stylesheet" href="css/nav.css?v=202609031608" />
+  <link rel="stylesheet" href="css/list.css?v=202609031608" />
 </head>
 <body data-page="board">
   <div id="siteNav"></div>
@@ -18,6 +18,7 @@
   <div class="container">
     <div class="card write-form">
       <div class="field"><label>제목</label><input type="text" id="titleInput" placeholder="제목을 입력하세요"></div>
+      <div class="field"><label>탭</label><select id="categorySelect"></select></div>
       <div class="field"><label>내용</label><textarea id="bodyInput" placeholder="무슨 이야기를 남기고 싶나요?"></textarea></div>
       <button class="btn btn-primary" id="saveBtn" style="width:100%;">저장</button>
       <span id="saveStatus" class="muted" style="font-size:13px;margin-left:8px;"></span>
@@ -26,11 +27,12 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="js/firebase-config.js?v=202609031516"></script>
-  <script src="js/cloud.js?v=202609031516"></script>
-  <script src="js/admin-auth.js?v=202609031516"></script>
-  <script src="js/board-store.js?v=202609031516"></script>
-  <script src="js/site-nav.js?v=202609031516"></script>
-  <script src="js/board-write.js?v=202609031516"></script>
+  <script src="js/firebase-config.js?v=202609031608"></script>
+  <script src="js/cloud.js?v=202609031608"></script>
+  <script src="js/admin-auth.js?v=202609031608"></script>
+  <script src="js/board-store.js?v=202609031608"></script>
+  <script src="js/category-ui.js?v=202609031608"></script>
+  <script src="js/site-nav.js?v=202609031608"></script>
+  <script src="js/board-write.js?v=202609031608"></script>
 </body>
 </html>

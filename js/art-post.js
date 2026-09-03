@@ -22,15 +22,25 @@
     return d.getFullYear() + "." + (d.getMonth() + 1) + "." + d.getDate();
   }
 
+  function categoryName(id) {
+    if (!id) return null;
+    var found = ArtStore.getCategories().filter(function (c) {
+      return c.id === id;
+    })[0];
+    return found ? found.name : null;
+  }
+
   function render() {
     document.title = (post.title || "그림") + " - 낙서장";
     var isAdmin = AdminAuth.isActive();
+    var catName = categoryName(post.category);
     root.innerHTML =
       '<div class="art-post-image" id="artImageWrap"><div class="center-empty">불러오는 중...</div></div>' +
       '<h1 class="post-title">' +
       escapeHtml(post.title || "제목 없음") +
       "</h1>" +
       '<div class="post-meta">' +
+      (catName ? escapeHtml(catName) + " · " : "") +
       formatDate(post.createdAt) +
       "</div>" +
       (post.caption

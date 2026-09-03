@@ -55,7 +55,9 @@
   color: var(--color-board-deep);
 }
 .nav-link.home.current,
-.nav-link.home:hover {
+.nav-link.home:hover,
+.nav-link.about.current,
+.nav-link.about:hover {
   background: var(--color-surface-soft);
   color: var(--color-text);
 }

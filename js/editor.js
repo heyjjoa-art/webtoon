@@ -35,6 +35,8 @@
     };
 
     titleInput.value = episode.title || "";
+    var backLink = document.getElementById("backLink");
+    if (backLink && episode.seriesId) backLink.href = "admin.html?series=" + encodeURIComponent(episode.seriesId);
 
     var scale = 1;
     var selection = null; // { type: 'panel'|'text', id }
@@ -247,13 +249,21 @@
       el.addEventListener("pointerdown", function (e) {
         if (e.target.classList.contains("resize-handle")) return;
         e.preventDefault();
+        // select()는 캔버스를 통째로 다시 그린다(render()) - 그러면 지금 이
+        // pointerdown을 받은 el은 DOM에서 사라진 채로 이 클로저에만 남는다.
+        // 사라진(연결 끊긴) 엘리먼트에 setPointerCapture를 걸면
+        // InvalidStateError가 난다 - select() 이후 새로 그려진 같은 박스의
+        // 엘리먼트를 다시 찾아서 그걸로 드래그를 이어가야 한다.
         select(type, box.id);
-        el.setPointerCapture(e.pointerId);
+        var liveSelector = (type === "panel" ? ".ed-panel" : ".ed-text") + '[data-id="' + box.id + '"]';
+        var liveEl = canvasEl.querySelector(liveSelector);
+        if (!liveEl) return;
+        liveEl.setPointerCapture(e.pointerId);
         var startClientX = e.clientX;
         var startClientY = e.clientY;
         var startX = box.x;
         var startY = box.y;
-        el.style.cursor = "grabbing";
+        liveEl.style.cursor = "grabbing";
 
         function onMove(ev) {
           var dx = (ev.clientX - startClientX) / scale;
@@ -267,18 +277,18 @@
                 };
           box.x = snapped.x;
           box.y = snapped.y;
-          positionBox(el, box);
+          positionBox(liveEl, box);
         }
         function onUp(ev) {
-          el.releasePointerCapture(ev.pointerId);
-          el.style.cursor = "grab";
-          el.removeEventListener("pointermove", onMove);
-          el.removeEventListener("pointerup", onUp);
+          liveEl.releasePointerCapture(ev.pointerId);
+          liveEl.style.cursor = "grab";
+          liveEl.removeEventListener("pointermove", onMove);
+          liveEl.removeEventListener("pointerup", onUp);
           hideGuides();
           scheduleSave();
         }
-        el.addEventListener("pointermove", onMove);
-        el.addEventListener("pointerup", onUp);
+        liveEl.addEventListener("pointermove", onMove);
+        liveEl.addEventListener("pointerup", onUp);
       });
     }
 
@@ -514,9 +524,9 @@
       sidePanel.innerHTML =
         "<h3>🖼️ 컷 속성</h3>" +
         '<div class="field"><label>채우기</label><select id="propFit"><option value="cover">꽉 채우기</option><option value="contain">전체 보이기</option></select></div>' +
-        '<div class="field"><label>모서리 둥글기 (' +
+        '<div class="field"><label>모서리 둥글기 (<span id="propRadiusVal">' +
         (p.radius || 0) +
-        'px)</label><input type="range" id="propRadius" min="0" max="60" value="' +
+        '</span>px)</label><input type="range" id="propRadius" min="0" max="60" value="' +
         (p.radius || 0) +
         '"></div>' +
         '<div class="field"><label><input type="checkbox" id="propBorder"' +
@@ -533,7 +543,14 @@
       });
       sidePanel.querySelector("#propRadius").addEventListener("input", function (e) {
         p.radius = Number(e.target.value);
-        render();
+        // 드래그 중(input)에는 render()로 캔버스 전체를 다시 그리지 않는다 - 그러면
+        // 슬라이더 자체가 통째로 새 엘리먼트로 교체돼서 드래그가 끊긴다(말풍선 글자
+        // 입력이 매 키 입력마다 끊기던 것과 같은 원인). 지금 그려진 컷 엘리먼트만
+        // 직접 업데이트한다.
+        var liveEl = canvasEl.querySelector('.ed-panel[data-id="' + p.id + '"]');
+        if (liveEl) liveEl.style.borderRadius = px(p.radius);
+        var valEl = sidePanel.querySelector("#propRadiusVal");
+        if (valEl) valEl.textContent = String(p.radius);
       });
       sidePanel.querySelector("#propRadius").addEventListener("change", scheduleSave);
       sidePanel.querySelector("#propBorder").addEventListener("change", function (e) {
@@ -557,15 +574,19 @@
         "</textarea></div>" +
         '<div class="field"><label>종류</label><select id="propStyle"><option value="bubble">말풍선</option><option value="narration">나레이션</option><option value="sfx">효과음</option></select></div>' +
         '<div class="field"><label>정렬</label><select id="propAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select></div>' +
-        '<div class="field"><label>글자 크기 (' +
+        '<div class="field"><label>글자 크기 (<span id="propSizeVal">' +
         (t.size || 16) +
-        'px)</label><input type="range" id="propSize" min="10" max="40" value="' +
+        '</span>px)</label><input type="range" id="propSize" min="10" max="40" value="' +
         (t.size || 16) +
         '"></div>';
 
       sidePanel.querySelector("#propText").addEventListener("input", function (e) {
         t.text = e.target.value;
-        render();
+        // render()를 부르면 이 textarea 자체가 통째로 새로 그려져서 포커스가
+        // 날아가고, 그다음 키 입력이 아무 데도 들어가지 않는다("키보드 오류"처럼
+        // 느껴지는 원인) - 캔버스 위 미리보기 글자만 직접 바꿔준다.
+        var liveEl = canvasEl.querySelector('.ed-text[data-id="' + t.id + '"]');
+        if (liveEl) liveEl.textContent = t.text || "(내용 없음)";
         scheduleSave();
       });
       sidePanel.querySelector("#propStyle").value = t.style || "bubble";
@@ -582,7 +603,10 @@
       });
       sidePanel.querySelector("#propSize").addEventListener("input", function (e) {
         t.size = Number(e.target.value);
-        render();
+        var liveEl = canvasEl.querySelector('.ed-text[data-id="' + t.id + '"]');
+        if (liveEl) liveEl.style.fontSize = Math.max(9, t.size * scale) + "px";
+        var valEl = sidePanel.querySelector("#propSizeVal");
+        if (valEl) valEl.textContent = String(t.size);
       });
       sidePanel.querySelector("#propSize").addEventListener("change", scheduleSave);
     }
@@ -620,6 +644,7 @@
     function doSave() {
       EpisodeStore.saveEpisode({
         id: episode.id,
+        seriesId: episode.seriesId,
         no: episode.no,
         title: titleInput.value.trim(),
         summary: episode.summary,

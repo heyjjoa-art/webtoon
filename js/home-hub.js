@@ -7,13 +7,19 @@
     return div.innerHTML;
   }
 
-  function toonPreviewHtml() {
-    var visible = EpisodeStore.listEpisodes().filter(EpisodeStore.isVisible);
-    if (!visible.length) return "아직 회차가 없어요.<br>첫 회차를 올려보세요!";
-    var latest = visible.sort(function (a, b) {
-      return (b.no || 0) - (a.no || 0);
-    })[0];
-    return escapeHtml(latest.no + "화 · " + (latest.title || "")) + (latest.summary ? "<br>" + escapeHtml(latest.summary) : "");
+  // 여러 시리즈 중 하나를 대표로 뽑아 카드에 보여준다 - SeriesStore.listSeries()가
+  // 이미 연재중을 맨 앞으로 정렬해주므로 그냥 첫 번째를 쓰면 된다.
+  function toonPreview() {
+    var seriesList = SeriesStore.listSeries();
+    if (!seriesList.length) {
+      return { title: "웹툰", preview: "아직 시리즈가 없어요.<br>첫 시리즈를 만들어보세요!", seriesId: null };
+    }
+    var featured = seriesList[0];
+    var latestEp = EpisodeStore.listEpisodes(featured.id).filter(EpisodeStore.isVisible)[0];
+    var preview = latestEp
+      ? escapeHtml(latestEp.no + "화 · " + (latestEp.title || ""))
+      : "곧 첫 회차가 올라와요!";
+    return { title: featured.title, preview: preview, seriesId: featured.id };
   }
 
   function artFrameHtml() {
@@ -32,21 +38,25 @@
   }
 
   function render() {
-    var series = EpisodeStore.getSeries();
-    document.getElementById("hubTitle").textContent = series.title && series.title !== "제목 없는 웹툰" ? series.title + "네 낙서장" : "오늘의 낙서장";
+    document.getElementById("hubTitle").textContent = "유키의 낙서장";
 
+    var toon = toonPreview();
     var art = artFrameHtml();
     var board = boardPreview();
     var desk = document.getElementById("hubDesk");
 
     desk.innerHTML =
-      '<a class="hub-card toon" href="toon.html">' +
+      '<a class="hub-card toon" href="' +
+      (toon.seriesId ? "toon-series.html?series=" + encodeURIComponent(toon.seriesId) : "toon.html") +
+      '">' +
       '<div class="hub-card-body"><div class="hub-icon">💬</div>' +
-      '<div class="hub-title">웹툰</div>' +
+      '<div class="hub-title">' +
+      escapeHtml(toon.title) +
+      "</div>" +
       '<div class="hub-preview">' +
-      toonPreviewHtml() +
+      toon.preview +
       "</div></div>" +
-      '<div class="hub-card-label">회차 보러가기</div>' +
+      '<div class="hub-card-label">웹툰 보러가기</div>' +
       "</a>" +
       '<a class="hub-card art" href="' +
       (art.id ? "art-post.html?id=" + encodeURIComponent(art.id) : "art.html") +
@@ -87,8 +97,8 @@
   }
 
   window.__webtoonOnEpisodesChanged = render;
+  window.__webtoonOnSeriesListChanged = render;
   window.__webtoonOnArtChanged = render;
   window.__webtoonOnBoardChanged = render;
-  window.__webtoonOnSeriesChanged = render;
   render();
 })();
