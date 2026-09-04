@@ -37,8 +37,29 @@
     return { title: latest.title || "(제목 없음)", preview: snippet + ((latest.body || "").length > 44 ? "…" : "") };
   }
 
+  function renderLoggedOut() {
+    document.getElementById("hubTitle").textContent = "낙서장";
+    document.getElementById("hubSub").textContent = "로그인하면 나만의 낙서장이 열려요";
+    var desk = document.getElementById("hubDesk");
+    desk.innerHTML =
+      '<div class="hub-empty-state">' +
+      '<div class="hub-empty-icon">🔒</div>' +
+      '<div class="hub-empty-text">로그인하면 웹툰·그림·글이 여기 채워져요.</div>' +
+      '<button class="btn btn-primary" id="hubLoginBtn">로그인 / 낙서장 만들기</button>' +
+      "</div>";
+    document.getElementById("hubLoginBtn").addEventListener("click", function () {
+      Session.openAuthModal(function () {});
+    });
+  }
+
   function render() {
-    document.getElementById("hubTitle").textContent = "유키의 낙서장";
+    if (!Session.isLoggedIn()) {
+      renderLoggedOut();
+      return;
+    }
+
+    document.getElementById("hubTitle").textContent = ProfileStore.getSiteName() + "의 낙서장";
+    document.getElementById("hubSub").textContent = "웹툰이랑 그림, 이야기를 모아두는 곳";
 
     var toon = toonPreview();
     var art = artFrameHtml();
@@ -100,5 +121,6 @@
   window.__webtoonOnSeriesListChanged = render;
   window.__webtoonOnArtChanged = render;
   window.__webtoonOnBoardChanged = render;
-  render();
+  window.__webtoonOnProfileChanged = render;
+  Session.onChange(render);
 })();

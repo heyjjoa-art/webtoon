@@ -20,7 +20,7 @@
       renderTabs();
       renderList();
     }, {
-      isAdmin: AdminAuth.isActive(),
+      isAdmin: Session.isLoggedIn(),
       getCategories: BoardStore.getCategories,
       saveCategories: BoardStore.saveCategories,
       onManaged: function () {
@@ -60,14 +60,15 @@
   }
 
   document.getElementById("newPostBtn").addEventListener("click", function () {
-    AdminAuth.guard(function () {
+    Session.requireLogin(function () {
       location.href = "board-write.html" + (activeCategory ? "?category=" + encodeURIComponent(activeCategory) : "");
     });
   });
 
   window.__webtoonOnBoardChanged = renderList;
   window.__webtoonOnBoardCategoriesChanged = renderTabs;
-  window.__onAdminLogin = renderTabs;
-  renderTabs();
-  renderList();
+  Session.onChange(function () {
+    renderTabs();
+    renderList();
+  });
 })();

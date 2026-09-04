@@ -7,13 +7,17 @@
 // 시리즈 여러 개를 다루므로(series-store.js) 회차마다 seriesId를 갖고, 컬렉션은
 // 여전히 하나(flat)로 두고 클라이언트에서 seriesId로 걸러본다 - 이 앱 전체가
 // 쓰는 방식과 같다. 회차 id/번호(no)는 시리즈 단위로 매겨진다.
+//
+// 모든 데이터는 로그인한 계정 것만 본다(Session.lsKey/Session.path) - 로그아웃
+// 상태에서는 읽으면 빈 목록, 써도 조용히 무시된다.
 var EpisodeStore = (function () {
-  var EPISODES_KEY = "webtoonEpisodes";
   var EPISODES_COLLECTION = "episodes";
   var RECENT_LOCAL_ONLY_MS = 5 * 60 * 1000;
 
   function loadAll() {
-    var raw = localStorage.getItem(EPISODES_KEY);
+    var key = Session.lsKey("webtoonEpisodes");
+    if (!key) return {};
+    var raw = localStorage.getItem(key);
     if (!raw) return {};
     try {
       return JSON.parse(raw) || {};
@@ -23,7 +27,9 @@ var EpisodeStore = (function () {
   }
 
   function saveAll(map) {
-    localStorage.setItem(EPISODES_KEY, JSON.stringify(map));
+    var key = Session.lsKey("webtoonEpisodes");
+    if (!key) return;
+    localStorage.setItem(key, JSON.stringify(map));
   }
 
   function nextNo(seriesId) {
@@ -75,6 +81,7 @@ var EpisodeStore = (function () {
   }
 
   function saveEpisode(ep) {
+    if (!Session.isLoggedIn()) return ep;
     var all = loadAll();
     var merged = Object.assign({}, all[ep.id] || {}, ep, { updatedAt: Date.now() });
     all[ep.id] = merged;
@@ -85,6 +92,7 @@ var EpisodeStore = (function () {
   }
 
   function deleteEpisode(id) {
+    if (!Session.isLoggedIn()) return;
     // 컷 그림 정리(PanelArtStore.deleteAllForEpisode)는 이 회차의 panels 목록을
     // 다시 읽어야 해서, 로컬에서 회차를 지우기 전에 먼저 해야 한다 - 순서를
     // 바꾸면 이미 지워진 회차를 찾지 못해 그림이 고아로 남는다.
@@ -92,7 +100,7 @@ var EpisodeStore = (function () {
     var all = loadAll();
     delete all[id];
     saveAll(all);
-    Cloud.deleteDoc(EPISODES_COLLECTION + "/" + id);
+    Cloud.deleteDoc(Session.path(EPISODES_COLLECTION + "/" + id));
     if (window.__webtoonOnEpisodesChanged) window.__webtoonOnEpisodesChanged();
   }
 
@@ -157,7 +165,7 @@ var EpisodeStore = (function () {
     if (!Cloud.enabled) return Promise.resolve();
     var payload = Object.assign({}, ep);
     delete payload.cloudSyncPromise;
-    return Cloud.writeDoc(EPISODES_COLLECTION + "/" + id, payload);
+    return Cloud.writeDoc(Session.path(EPISODES_COLLECTION + "/" + id), payload);
   }
 
   function applyCloudEpisodes(remoteDocs) {
@@ -183,8 +191,8 @@ var EpisodeStore = (function () {
   }
 
   function bootstrapEpisodeSync() {
-    if (!Cloud.enabled) return;
-    Cloud.getCollectionOnce(EPISODES_COLLECTION).then(function (remoteDocs) {
+    if (!Cloud.enabled || !Session.isLoggedIn()) return;
+    Cloud.getCollectionOnce(Session.path(EPISODES_COLLECTION)).then(function (remoteDocs) {
       if (remoteDocs && Object.keys(remoteDocs).length > 0) {
         mergeCloudSnapshotIntoLocal(remoteDocs);
       } else {
@@ -193,11 +201,11 @@ var EpisodeStore = (function () {
           syncEpisodeToCloud(id, local[id]);
         });
       }
-      Cloud.watchCollection(EPISODES_COLLECTION, applyCloudEpisodes);
+      Cloud.watchCollection(Session.path(EPISODES_COLLECTION), applyCloudEpisodes);
     });
   }
 
-  bootstrapEpisodeSync();
+  Session.register({ bootstrap: bootstrapEpisodeSync });
 
   return {
     blankEpisode: blankEpisode,

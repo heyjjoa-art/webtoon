@@ -3,27 +3,11 @@
 
   var params = new URLSearchParams(location.search);
   var epId = params.get("ep");
-  var episode = epId ? EpisodeStore.getEpisode(epId) : null;
+  var episode = null;
 
   var canvasEl = document.getElementById("panelCanvas");
   var readerRoot = document.getElementById("readerRoot");
   var lockedView = document.getElementById("lockedView");
-
-  if (!episode || !EpisodeStore.isVisible(episode)) {
-    readerRoot.hidden = true;
-    lockedView.hidden = false;
-    document.getElementById("epTitle").textContent = "";
-    return;
-  }
-
-  document.getElementById("epTitle").textContent = episode.no + "화 · " + (episode.title || "");
-  document.title = episode.title + " - 낙서장";
-  var backLink = document.getElementById("backLink");
-  if (backLink && episode.seriesId) backLink.href = "toon-series.html?series=" + encodeURIComponent(episode.seriesId);
-
-  renderCanvas();
-  renderNav();
-  CommentsWidget.mount(episode, "toon");
 
   function renderCanvas() {
     var cw = episode.canvasWidth || 900;
@@ -119,4 +103,23 @@
     else nextBtn.disabled = true;
   }
 
+  Session.ready.then(function () {
+    episode = epId ? EpisodeStore.getEpisode(epId) : null;
+
+    if (!episode || !EpisodeStore.isVisible(episode)) {
+      readerRoot.hidden = true;
+      lockedView.hidden = false;
+      document.getElementById("epTitle").textContent = "";
+      return;
+    }
+
+    document.getElementById("epTitle").textContent = episode.no + "화 · " + (episode.title || "");
+    document.title = episode.title + " - 낙서장";
+    var backLink = document.getElementById("backLink");
+    if (backLink && episode.seriesId) backLink.href = "toon-series.html?series=" + encodeURIComponent(episode.seriesId);
+
+    renderCanvas();
+    renderNav();
+    CommentsWidget.mount(episode, "toon");
+  });
 })();

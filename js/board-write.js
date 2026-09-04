@@ -5,7 +5,7 @@
   var editId = params.get("id");
   var presetCategory = params.get("category");
 
-  AdminAuth.guard(function () {
+  Session.requireLogin(function () {
     var titleInput = document.getElementById("titleInput");
     var bodyInput = document.getElementById("bodyInput");
     var categorySelect = document.getElementById("categorySelect");

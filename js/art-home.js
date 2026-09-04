@@ -20,7 +20,7 @@
       renderTabs();
       renderGrid();
     }, {
-      isAdmin: AdminAuth.isActive(),
+      isAdmin: Session.isLoggedIn(),
       getCategories: ArtStore.getCategories,
       saveCategories: ArtStore.saveCategories,
       onManaged: function () {
@@ -72,7 +72,7 @@
   // 관리자 로그인 상태에서만 진짜로 새 글을 만든다 - 아직 로그인 전이면 PIN부터
   // 물어보고, 통과하면 이어서 진행한다.
   function startNewArt() {
-    AdminAuth.guard(function () {
+    Session.requireLogin(function () {
       askTitle(function (title, category) {
         var post = ArtStore.savePost(Object.assign(ArtStore.blankPost(title), { category: category }));
         location.href = "paint.html?art=" + encodeURIComponent(post.id);
@@ -110,7 +110,8 @@
   document.getElementById("newArtBtn").addEventListener("click", startNewArt);
   window.__webtoonOnArtChanged = renderGrid;
   window.__webtoonOnArtCategoriesChanged = renderTabs;
-  window.__onAdminLogin = renderTabs;
-  renderTabs();
-  renderGrid();
+  Session.onChange(function () {
+    renderTabs();
+    renderGrid();
+  });
 })();

@@ -13,7 +13,7 @@
     return div.innerHTML;
   }
 
-  AdminAuth.guard(function () {
+  Session.requireLogin(function () {
     if (seriesId) {
       var series = SeriesStore.getSeries(seriesId);
       if (!series) {

@@ -138,8 +138,23 @@
     });
   }
 
+  function renderLoggedOut() {
+    root.innerHTML =
+      '<div class="about-bio about-bio-empty" style="text-align:center;padding:40px 20px;">' +
+      "로그인하면 나만의 소개 페이지를 만들 수 있어요." +
+      '<div style="margin-top:14px;"><button class="btn btn-primary btn-sm" id="aboutLoginBtn">로그인 / 낙서장 만들기</button></div>' +
+      "</div>";
+    document.getElementById("aboutLoginBtn").addEventListener("click", function () {
+      Session.openAuthModal(function () {});
+    });
+  }
+
   function render() {
-    var isAdmin = AdminAuth.isActive();
+    var isAdmin = Session.isLoggedIn();
+    if (!isAdmin) {
+      renderLoggedOut();
+      return;
+    }
     var bioRecord = AboutStore.getBio();
 
     root.innerHTML =
@@ -163,7 +178,10 @@
           (isAdmin ? '<button class="btn btn-ghost btn-sm" id="aboutBioEditBtn" style="margin-top:12px;">✏️ 소개글 수정</button>' : "")) +
       renderFriendsSection(isAdmin) +
       (isAdmin
-        ? '<div class="admin-settings"><button class="btn btn-ghost btn-sm" id="pinChangeBtn">🔐 관리자 PIN 변경</button></div>'
+        ? '<div class="admin-settings">' +
+          '<button class="btn btn-ghost btn-sm" id="siteNameBtn">✏️ 낙서장 이름 바꾸기</button> ' +
+          '<button class="btn btn-ghost btn-sm" id="legacyImportBtn">📦 기존 낙서장 내용 가져오기</button>' +
+          "</div>"
         : "");
 
     PanelArtStore.loadPanel("about", "photo").then(function (art) {
@@ -196,8 +214,13 @@
           render();
         });
       }
-      document.getElementById("pinChangeBtn").addEventListener("click", function () {
-        AdminAuth.changePin();
+      document.getElementById("siteNameBtn").addEventListener("click", function () {
+        var next = window.prompt("낙서장 제목에 쓸 이름을 입력하세요", ProfileStore.getSiteName());
+        if (next === null) return;
+        ProfileStore.saveSiteName(next);
+      });
+      document.getElementById("legacyImportBtn").addEventListener("click", function () {
+        LegacyImport.run();
       });
     }
 
@@ -223,8 +246,7 @@
     }).then(render);
   });
 
-  window.__onAdminLogin = render;
   window.__webtoonOnAboutChanged = render;
   window.__webtoonOnFriendsChanged = render;
-  render();
+  Session.onChange(render);
 })();

@@ -3,13 +3,8 @@
 
   var params = new URLSearchParams(location.search);
   var postId = params.get("id");
-  var post = postId ? BoardStore.getPost(postId) : null;
+  var post = null;
   var root = document.getElementById("postRoot");
-
-  if (!post) {
-    root.innerHTML = '<div class="center-empty">글을 찾을 수 없어요.</div>';
-    return;
-  }
 
   function escapeHtml(s) {
     var div = document.createElement("div");
@@ -32,7 +27,7 @@
 
   function render() {
     document.title = (post.title || "글") + " - 낙서장";
-    var isAdmin = AdminAuth.isActive();
+    var isAdmin = Session.isLoggedIn();
     var catName = categoryName(post.category);
     root.innerHTML =
       '<h1 class="post-title">' +
@@ -65,7 +60,13 @@
     }
   }
 
-  window.__onAdminLogin = render;
-  render();
-  CommentsWidget.mount(post, "board");
+  Session.ready.then(function () {
+    post = postId ? BoardStore.getPost(postId) : null;
+    if (!post) {
+      root.innerHTML = '<div class="center-empty">글을 찾을 수 없어요.</div>';
+      return;
+    }
+    render();
+    CommentsWidget.mount(post, "board");
+  });
 })();

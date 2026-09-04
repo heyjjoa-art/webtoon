@@ -3,13 +3,8 @@
 
   var params = new URLSearchParams(location.search);
   var postId = params.get("id");
-  var post = postId ? ArtStore.getPost(postId) : null;
+  var post = null;
   var root = document.getElementById("postRoot");
-
-  if (!post) {
-    root.innerHTML = '<div class="center-empty">그림을 찾을 수 없어요.</div>';
-    return;
-  }
 
   function escapeHtml(s) {
     var div = document.createElement("div");
@@ -32,7 +27,7 @@
 
   function render() {
     document.title = (post.title || "그림") + " - 낙서장";
-    var isAdmin = AdminAuth.isActive();
+    var isAdmin = Session.isLoggedIn();
     var catName = categoryName(post.category);
     root.innerHTML =
       '<div class="art-post-image" id="artImageWrap"><div class="center-empty">불러오는 중...</div></div>' +
@@ -85,7 +80,13 @@
     }
   }
 
-  window.__onAdminLogin = render;
-  render();
-  CommentsWidget.mount(post, "art");
+  Session.ready.then(function () {
+    post = postId ? ArtStore.getPost(postId) : null;
+    if (!post) {
+      root.innerHTML = '<div class="center-empty">그림을 찾을 수 없어요.</div>';
+      return;
+    }
+    render();
+    CommentsWidget.mount(post, "art");
+  });
 })();

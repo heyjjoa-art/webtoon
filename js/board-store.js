@@ -1,13 +1,17 @@
 // 글 게시판 글(제목+본문 텍스트). 그림이 없어서 episode-store.js/art-store.js보다도
 // 더 단순하다 - 문서 하나가 거의 항상 900KB를 넘길 일이 없으니 이미지 압축 같은
 // 것도 필요 없다.
+//
+// 모든 데이터는 로그인한 계정 것만 본다(Session.lsKey/Session.path) - 로그아웃
+// 상태에서는 읽으면 빈 목록, 써도 조용히 무시된다.
 var BoardStore = (function () {
-  var POSTS_KEY = "webtoonBoardPosts";
   var COLLECTION = "boardPosts";
   var RECENT_LOCAL_ONLY_MS = 5 * 60 * 1000;
 
   function loadAll() {
-    var raw = localStorage.getItem(POSTS_KEY);
+    var key = Session.lsKey("webtoonBoardPosts");
+    if (!key) return {};
+    var raw = localStorage.getItem(key);
     if (!raw) return {};
     try {
       return JSON.parse(raw) || {};
@@ -17,7 +21,9 @@ var BoardStore = (function () {
   }
 
   function saveAll(map) {
-    localStorage.setItem(POSTS_KEY, JSON.stringify(map));
+    var key = Session.lsKey("webtoonBoardPosts");
+    if (!key) return;
+    localStorage.setItem(key, JSON.stringify(map));
   }
 
   function genId() {
@@ -40,6 +46,7 @@ var BoardStore = (function () {
   }
 
   function savePost(post) {
+    if (!Session.isLoggedIn()) return post;
     var all = loadAll();
     var merged = Object.assign({}, all[post.id] || {}, post, { updatedAt: Date.now() });
     if (!merged.createdAt) merged.createdAt = merged.updatedAt;
@@ -51,10 +58,11 @@ var BoardStore = (function () {
   }
 
   function deletePost(id) {
+    if (!Session.isLoggedIn()) return;
     var all = loadAll();
     delete all[id];
     saveAll(all);
-    Cloud.deleteDoc(COLLECTION + "/" + id);
+    Cloud.deleteDoc(Session.path(COLLECTION + "/" + id));
     if (window.__webtoonOnBoardChanged) window.__webtoonOnBoardChanged();
   }
 
@@ -72,7 +80,7 @@ var BoardStore = (function () {
 
   function syncToCloud(id, post) {
     if (!Cloud.enabled) return Promise.resolve();
-    return Cloud.writeDoc(COLLECTION + "/" + id, post);
+    return Cloud.writeDoc(Session.path(COLLECTION + "/" + id), post);
   }
 
   function applyCloud(remoteDocs) {
@@ -98,8 +106,8 @@ var BoardStore = (function () {
   }
 
   function bootstrap() {
-    if (!Cloud.enabled) return;
-    Cloud.getCollectionOnce(COLLECTION).then(function (remoteDocs) {
+    if (!Cloud.enabled || !Session.isLoggedIn()) return;
+    Cloud.getCollectionOnce(Session.path(COLLECTION)).then(function (remoteDocs) {
       if (remoteDocs && Object.keys(remoteDocs).length > 0) {
         mergeCloudSnapshot(remoteDocs);
       } else {
@@ -108,16 +116,17 @@ var BoardStore = (function () {
           syncToCloud(id, local[id]);
         });
       }
-      Cloud.watchCollection(COLLECTION, applyCloud);
+      Cloud.watchCollection(Session.path(COLLECTION), applyCloud);
     });
   }
 
   // ── 탭(카테고리) — 최대 5개, "일기"/"나의생각"처럼 글을 나눠 담는 용도 ──
-  var CATS_KEY = "webtoonBoardCategories";
-  var CATS_DOC = "boardMeta/categories";
+  var CATS_DOC = "meta/boardCategories";
 
   function getCategories() {
-    var raw = localStorage.getItem(CATS_KEY);
+    var key = Session.lsKey("webtoonBoardCategories");
+    if (!key) return [];
+    var raw = localStorage.getItem(key);
     if (!raw) return [];
     try {
       return JSON.parse(raw) || [];
@@ -127,31 +136,39 @@ var BoardStore = (function () {
   }
 
   function saveCategories(list) {
-    localStorage.setItem(CATS_KEY, JSON.stringify(list));
-    Cloud.writeDoc(CATS_DOC, { list: list, updatedAt: Date.now() });
+    var key = Session.lsKey("webtoonBoardCategories");
+    if (!key) return;
+    localStorage.setItem(key, JSON.stringify(list));
+    Cloud.writeDoc(Session.path(CATS_DOC), { list: list, updatedAt: Date.now() });
     if (window.__webtoonOnBoardCategoriesChanged) window.__webtoonOnBoardCategoriesChanged();
   }
 
   function bootstrapCategories() {
-    if (!Cloud.enabled) return;
-    Cloud.getDocOnce(CATS_DOC).then(function (remote) {
+    if (!Cloud.enabled || !Session.isLoggedIn()) return;
+    Cloud.getDocOnce(Session.path(CATS_DOC)).then(function (remote) {
       var local = getCategories();
       if (remote && remote.list) {
-        localStorage.setItem(CATS_KEY, JSON.stringify(remote.list));
+        localStorage.setItem(Session.lsKey("webtoonBoardCategories"), JSON.stringify(remote.list));
         if (window.__webtoonOnBoardCategoriesChanged) window.__webtoonOnBoardCategoriesChanged();
       } else if (local.length) {
-        Cloud.writeDoc(CATS_DOC, { list: local, updatedAt: Date.now() });
+        Cloud.writeDoc(Session.path(CATS_DOC), { list: local, updatedAt: Date.now() });
       }
-      Cloud.watchDoc(CATS_DOC, function (remoteDoc) {
+      Cloud.watchDoc(Session.path(CATS_DOC), function (remoteDoc) {
         if (!remoteDoc) return;
-        localStorage.setItem(CATS_KEY, JSON.stringify(remoteDoc.list || []));
+        var key = Session.lsKey("webtoonBoardCategories");
+        if (!key) return;
+        localStorage.setItem(key, JSON.stringify(remoteDoc.list || []));
         if (window.__webtoonOnBoardCategoriesChanged) window.__webtoonOnBoardCategoriesChanged();
       });
     });
   }
 
-  bootstrap();
-  bootstrapCategories();
+  Session.register({
+    bootstrap: function () {
+      bootstrap();
+      bootstrapCategories();
+    }
+  });
 
   return {
     blankPost: blankPost,

@@ -8,6 +8,9 @@
 //                                 뷰어는 절대 읽지 않는다.
 // Firebase Storage(유료 Blaze 필요)를 안 쓰므로 문서 하나가 900KB를 넘지 않도록
 // 화질을 단계적으로 낮춰가며 압축한다(journeys 앱의 fitUnitForCloud 패턴과 동일).
+//
+// 캐시 키/Firestore 경로 모두 로그인한 계정의 uid를 포함한다 - 로그아웃 상태에서는
+// 그림을 저장·조회할 방법이 없으니 모든 함수가 조용히 아무 일도 하지 않는다.
 var PanelArtStore = (function () {
   var COLLECTION = "panelArt";
   var CLOUD_SIZE_LIMIT = 900000;
@@ -15,7 +18,8 @@ var PanelArtStore = (function () {
   var DB_VERSION = 1;
 
   function key(episodeId, panelId) {
-    return episodeId + "__" + panelId;
+    if (!Session.isLoggedIn()) return null;
+    return Session.uid() + "::" + episodeId + "__" + panelId;
   }
 
   // ── IndexedDB: 그림을 이 기기에 캐시해서 매번 클라우드를 안 거치게 한다 ──
@@ -148,11 +152,12 @@ var PanelArtStore = (function () {
   // ── 합본(최종 그림) ─────────────────────────────────────────────
   function savePanel(episodeId, panelId, compositeDataUrl) {
     var k = key(episodeId, panelId);
+    if (!k) return Promise.resolve(null);
     return fitDataUrl(compositeDataUrl, true).then(function (fitted) {
       var record = { image: fitted.dataUrl, w: fitted.w, h: fitted.h, updatedAt: Date.now() };
       idbSet("composite", k, record);
       var payload = Object.assign({ episodeId: episodeId, panelId: panelId }, record);
-      return Cloud.writeDoc(COLLECTION + "/" + k, payload).then(function () {
+      return Cloud.writeDoc(Session.path(COLLECTION + "/" + k), payload).then(function () {
         return record;
       });
     });
@@ -161,10 +166,11 @@ var PanelArtStore = (function () {
   // 캐시에 있으면 그걸로 바로 그려주고, 없거나 오래됐을 수 있으면 클라우드도 확인한다.
   function loadPanel(episodeId, panelId) {
     var k = key(episodeId, panelId);
+    if (!k) return Promise.resolve(null);
     return idbGet("composite", k).then(function (cached) {
       if (cached) return cached;
       if (!Cloud.enabled) return null;
-      return Cloud.getDocOnce(COLLECTION + "/" + k).then(function (remote) {
+      return Cloud.getDocOnce(Session.path(COLLECTION + "/" + k)).then(function (remote) {
         if (!remote) return null;
         idbSet("composite", k, remote);
         return remote;
@@ -174,16 +180,17 @@ var PanelArtStore = (function () {
 
   function deletePanel(episodeId, panelId) {
     var k = key(episodeId, panelId);
+    if (!k) return;
     idbDelete("composite", k);
     idbDelete("layers", k);
-    Cloud.deleteDoc(COLLECTION + "/" + k);
+    Cloud.deleteDoc(Session.path(COLLECTION + "/" + k));
     // layers 서브컬렉션은 클라이언트 SDK에서 컬렉션 삭제 API가 없어 문서를 나열해
     // 하나씩 지운다. 실패해도(오프라인 등) 부모 문서가 이미 지워졌으니 독자에게는
     // 영향이 없고, 다음에 같은 컷 id를 재사용하지 않는 한 orphan 레이어로만 남는다.
     if (Cloud.enabled) {
-      Cloud.getCollectionOnce(COLLECTION + "/" + k + "/layers").then(function (docs) {
+      Cloud.getCollectionOnce(Session.path(COLLECTION + "/" + k + "/layers")).then(function (docs) {
         Object.keys(docs || {}).forEach(function (layerId) {
-          Cloud.deleteDoc(COLLECTION + "/" + k + "/layers/" + layerId);
+          Cloud.deleteDoc(Session.path(COLLECTION + "/" + k + "/layers/" + layerId));
         });
       });
     }
@@ -201,9 +208,10 @@ var PanelArtStore = (function () {
   // layers: [{ id, name, order, opacity, visible, locked, alphaLock, clip, blend, image }]
   function saveLayers(episodeId, panelId, layers) {
     var k = key(episodeId, panelId);
+    if (!k) return Promise.resolve();
     idbSet("layers", k, layers);
     if (!Cloud.enabled) return Promise.resolve();
-    return Cloud.getCollectionOnce(COLLECTION + "/" + k + "/layers").then(function (existing) {
+    return Cloud.getCollectionOnce(Session.path(COLLECTION + "/" + k + "/layers")).then(function (existing) {
       var existingIds = Object.keys(existing || {});
       var keepIds = layers.map(function (l) {
         return l.id;
@@ -212,13 +220,13 @@ var PanelArtStore = (function () {
         return keepIds.indexOf(id) === -1;
       });
       removed.forEach(function (id) {
-        Cloud.deleteDoc(COLLECTION + "/" + k + "/layers/" + id);
+        Cloud.deleteDoc(Session.path(COLLECTION + "/" + k + "/layers/" + id));
       });
       return Promise.all(
         layers.map(function (layer) {
           return fitDataUrl(layer.image, false).then(function (fitted) {
             var payload = Object.assign({}, layer, { image: fitted.dataUrl, w: fitted.w, h: fitted.h, updatedAt: Date.now() });
-            return Cloud.writeDoc(COLLECTION + "/" + k + "/layers/" + layer.id, payload);
+            return Cloud.writeDoc(Session.path(COLLECTION + "/" + k + "/layers/" + layer.id), payload);
           });
         })
       );
@@ -227,10 +235,11 @@ var PanelArtStore = (function () {
 
   function loadLayers(episodeId, panelId) {
     var k = key(episodeId, panelId);
+    if (!k) return Promise.resolve(null);
     return idbGet("layers", k).then(function (cached) {
       if (cached && cached.length) return cached;
       if (!Cloud.enabled) return null;
-      return Cloud.getCollectionOnce(COLLECTION + "/" + k + "/layers").then(function (docs) {
+      return Cloud.getCollectionOnce(Session.path(COLLECTION + "/" + k + "/layers")).then(function (docs) {
         if (!docs) return null;
         var layers = Object.keys(docs)
           .map(function (id) {

@@ -1,18 +1,41 @@
-// 이 사이트는 서버가 없는 정적 사이트라서 관리자 인증이 "이 기기에 저장된 PIN"
-// 수준의 눈속임 잠금밖에 못 된다(js/admin-auth.js). Firestore 쪽에서 진짜 접근
-// 제어를 하려면 Firebase Authentication이 필요한데, 그러면 로그인 UI가 생기고
-// 지금 사이트의 "그냥 PIN 치고 관리자 화면 쓰기" 흐름과 안 맞는다. 그래서 지금은
-// 읽기/쓰기를 모두 열어두고, 대신 문서 크기(900KB)만 규칙에서 강제한다 -
-// 실수로 통째 이미지를 올려서 요금이 튀는 사고를 막는 최소한의 방어선이다.
+// 계정별 완전 분리 구조. 각 계정의 데이터는 users/{uid}/... 밑에만 있고, 그
+// uid로 로그인한 사람만 읽고 쓸 수 있다(request.auth.uid == uid). usernames/{이름}은
+// "이름 -> 내부 이메일" 매핑 문서 - 로그인 전에 이름으로 이메일을 찾아야 해서
+// 누구나 읽을 수 있지만(get만, list는 막아서 이름 전체 목록을 훑을 수는 없다),
+// 한 번 만들어지면(create) 그 문서의 uid 자신 말고는 고칠 수 없다(그래서 같은
+// 이름으로 두 번 가입하는 게 DB 레벨에서 막힌다).
+//
+// legacy 아래는 계정 시스템이 생기기 전에 쓰던 전역 데이터다. 로그인한 사람 누구나
+// 읽을 수만 있게 열어둬서 js/legacy-import.js로 각자 자기 계정에 복사해갈 수
+// 있게 하고, 새로 쓰는 건 막는다 - 옮기기가 끝나면 이 블록과 데이터를 통째로
+// 지운다.
 //
 // Firebase 콘솔 > Firestore Database > 규칙 탭에 이 내용을 그대로 붙여넣는다.
-// (테스트 모드로 만들면 30일 뒤 자동으로 막히므로, 그 전에 반드시 교체해야 한다.)
+// 반드시 코드 배포(session.js 등) 이후에 교체할 것 - 먼저 넣으면 그 사이 사이트가
+// 멈춘다.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read: if true;
-      allow write: if request.resource.size() < 950000;
+    match /usernames/{name} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
+
+    match /users/{uid}/{document=**} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid
+                   && request.resource.size() < 950000;
+    }
+
+    match /seriesList/{doc=**} { allow read: if request.auth != null; allow write: if false; }
+    match /episodes/{doc=**} { allow read: if request.auth != null; allow write: if false; }
+    match /artPosts/{doc=**} { allow read: if request.auth != null; allow write: if false; }
+    match /boardPosts/{doc=**} { allow read: if request.auth != null; allow write: if false; }
+    match /panelArt/{doc=**} { allow read: if request.auth != null; allow write: if false; }
+    match /about/{doc=**} { allow read: if request.auth != null; allow write: if false; }
+    match /artMeta/{doc=**} { allow read: if request.auth != null; allow write: if false; }
+    match /boardMeta/{doc=**} { allow read: if request.auth != null; allow write: if false; }
   }
 }

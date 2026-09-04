@@ -148,10 +148,29 @@ var Fans = (function () {
 
     var DAY_SPAN = 4; // 0~3일차로 순서를 나눈다
     var MINUTES_PER_SLOT = 1440; // 하루
+    var toneOrder = Object.keys(TEMPLATES);
+    var usedTexts = {}; // 같은 게시물에 친구들끼리 우연히 똑같은 문장을 올리는 걸 막는다.
+
+    // 친구의 성격 말투 풀에서 먼저 골라보고, 이미 이 게시물에서 쓰인 문장이면
+    // 같은 풀 안 다른 문장 -> 그래도 다 겹치면 다른 말투 풀로 넘어가서 찾는다.
+    function pickUniqueText(rand, tone, ctx) {
+      var order = [tone].concat(toneOrder.filter(function (t) { return t !== tone; }));
+      for (var oi = 0; oi < order.length; oi++) {
+        var pool = TEMPLATES[order[oi]][kind];
+        var start = Math.floor(rand() * pool.length);
+        for (var i = 0; i < pool.length; i++) {
+          var candidate = fillTemplate(pool[(start + i) % pool.length], ctx);
+          if (!usedTexts[candidate]) return candidate;
+        }
+      }
+      return fillTemplate(pick(rand, TEMPLATES.default[kind]), ctx);
+    }
+
     var comments = friends.map(function (f, idx) {
       var rand = mulberry32(hashString(item.id + "::" + f.id));
       var tone = detectTone(f.personality);
-      var pool = (TEMPLATES[tone] && TEMPLATES[tone][kind]) || TEMPLATES.default[kind];
+      var text = pickUniqueText(rand, tone, ctx);
+      usedTexts[text] = true;
       var dayIndex = idx % DAY_SPAN;
       var delayMinutes = dayIndex * MINUTES_PER_SLOT + Math.floor(rand() * MINUTES_PER_SLOT);
       return {
@@ -159,7 +178,7 @@ var Fans = (function () {
         fanId: f.id,
         name: f.name,
         emoji: f.emoji,
-        text: fillTemplate(pick(rand, pool), ctx),
+        text: text,
         delayMinutes: delayMinutes,
         likes: Math.floor(rand() * 40),
         parentId: null

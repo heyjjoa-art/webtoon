@@ -15,9 +15,11 @@
       return "nav-link " + key + (current === key ? " current" : "");
     }
 
+    var brandName = Session.isLoggedIn() ? ProfileStore.getSiteName() + "의 낙서장" : "낙서장";
+
     mount.className = "site-nav";
     mount.innerHTML =
-      '<a class="nav-brand" href="index.html">✏️ <span class="nav-brand-text">유키의 낙서장</span></a>' +
+      '<a class="nav-brand" href="index.html">✏️ <span class="nav-brand-text">' + brandName + '</span></a>' +
       '<div class="nav-links">' +
       '<a class="' + linkClass("home") + '" href="index.html">홈</a>' +
       '<a class="' + linkClass("about") + '" href="about.html">나의소개</a>' +
@@ -28,24 +30,23 @@
       '<button class="nav-admin-pill" id="navAdminPill"></button>';
 
     var pill = mount.querySelector("#navAdminPill");
-    function refreshPill() {
-      var active = AdminAuth.isActive();
-      pill.textContent = active ? "🔓 로그아웃" : "🔒 로그인";
-      pill.classList.toggle("active", active);
+    if (Session.isLoggedIn()) {
+      pill.textContent = "🔓 " + Session.accountName();
+      pill.classList.add("active");
+    } else {
+      pill.textContent = "🔒 로그인";
+      pill.classList.remove("active");
     }
-    refreshPill();
-    // admin-auth.js가 guard()로 로그인에 성공할 때마다 이 함수를 불러줘서, 페이지
-    // 어디서 로그인했든(이 pill을 눌렀든, 글쓰기 버튼을 눌러 guard가 떴든) pill
-    // 상태가 항상 맞게 유지된다.
-    window.__webtoonRefreshNav = refreshPill;
     pill.addEventListener("click", function () {
-      if (AdminAuth.isActive()) {
-        AdminAuth.logout();
+      if (Session.isLoggedIn()) {
+        Session.logOut();
       } else {
-        AdminAuth.guard(function () {});
+        Session.openAuthModal(function () {});
       }
     });
   }
 
-  render();
+  // 낙서장 이름(about.html에서 수정)이 바뀌면 이 브랜드 텍스트도 바로 반영한다.
+  window.__webtoonOnProfileChanged = render;
+  Session.onChange(render);
 })();

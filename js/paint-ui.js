@@ -13,32 +13,38 @@
   // 이 화면은 두 가지 용도로 쓰인다: 웹툰 컷(ep+panel)을 그리거나, 그림
   // 게시판 글(art) 하나를 그린다. paint-core는 이 구분을 몰라도 되게(그냥
   // key1/key2/가로/세로만 받게) 여기서 URL을 보고 미리 정리해 넘긴다.
+  //
+  // 로그인 계정의 데이터를 읽어야 하므로(EpisodeStore/ArtStore) Firebase 인증
+  // 상태가 확정된 뒤에야 계산할 수 있다 - resolveTarget()으로 미뤄둔다.
   var target = null; // { key1, key2, w, h, backHref }
-  if (epId && panelId) {
-    var epForPanel = EpisodeStore.getEpisode(epId);
-    var panelForSize = epForPanel && (epForPanel.panels || []).find(function (p) {
-      return p.id === panelId;
-    });
-    if (epForPanel && panelForSize) {
-      target = {
-        key1: epId,
-        key2: panelId,
-        w: panelForSize.w,
-        h: panelForSize.h,
-        backHref: "edit.html?ep=" + encodeURIComponent(epId)
-      };
+  function resolveTarget() {
+    if (epId && panelId) {
+      var epForPanel = EpisodeStore.getEpisode(epId);
+      var panelForSize = epForPanel && (epForPanel.panels || []).find(function (p) {
+        return p.id === panelId;
+      });
+      if (epForPanel && panelForSize) {
+        return {
+          key1: epId,
+          key2: panelId,
+          w: panelForSize.w,
+          h: panelForSize.h,
+          backHref: "edit.html?ep=" + encodeURIComponent(epId)
+        };
+      }
+    } else if (artId) {
+      var artPost = typeof ArtStore !== "undefined" ? ArtStore.getPost(artId) : null;
+      if (artPost) {
+        return {
+          key1: artId,
+          key2: "main",
+          w: artPost.canvasWidth || ArtStore.CANVAS_W,
+          h: artPost.canvasHeight || ArtStore.CANVAS_H,
+          backHref: "art-post.html?id=" + encodeURIComponent(artId)
+        };
+      }
     }
-  } else if (artId) {
-    var artPost = typeof ArtStore !== "undefined" ? ArtStore.getPost(artId) : null;
-    if (artPost) {
-      target = {
-        key1: artId,
-        key2: "main",
-        w: artPost.canvasWidth || ArtStore.CANVAS_W,
-        h: artPost.canvasHeight || ArtStore.CANVAS_H,
-        backHref: "art-post.html?id=" + encodeURIComponent(artId)
-      };
-    }
+    return null;
   }
 
   var TOOLS = [
@@ -73,12 +79,12 @@
   var fillTolerance = 24;
   var fillExpand = 1;
 
-  if (!target) {
-    location.href = "admin.html";
-    return;
-  }
-
-  AdminAuth.guard(function () {
+  Session.requireLogin(function () {
+    target = resolveTarget();
+    if (!target) {
+      location.href = "admin.html";
+      return;
+    }
     Paint.init(target.key1, target.key2, target.w, target.h)
       .then(boot)
       .catch(function (err) {

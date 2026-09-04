@@ -181,7 +181,7 @@
   }
 
   document.getElementById("newSeriesBtn").addEventListener("click", function () {
-    AdminAuth.guard(function () {
+    Session.requireLogin(function () {
       askTitle(function (title) {
         var series = SeriesStore.saveSeries(SeriesStore.blankSeries(title));
         location.href = "admin.html?series=" + encodeURIComponent(series.id);
@@ -191,5 +191,5 @@
 
   window.__webtoonOnSeriesListChanged = render;
   window.__webtoonOnEpisodesChanged = render;
-  render();
+  Session.onChange(render);
 })();

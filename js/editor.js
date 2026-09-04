@@ -4,7 +4,7 @@
   var params = new URLSearchParams(location.search);
   var epId = params.get("ep");
 
-  AdminAuth.guard(function () {
+  Session.requireLogin(function () {
     var episode = epId ? EpisodeStore.getEpisode(epId) : null;
     if (!episode) {
       location.href = "admin.html";

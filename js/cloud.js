@@ -6,6 +6,7 @@
 var Cloud = (function () {
   var db = null;
   var enabled = false;
+  var activeUnsubs = [];
 
   function isConfigured(cfg) {
     return !!(cfg && cfg.apiKey && cfg.projectId);
@@ -31,7 +32,7 @@ var Cloud = (function () {
   // 건너뛰고, 다른 기기에서 온 변경일 때만 콜백을 부른다.
   function watchDoc(path, onRemoteChange) {
     if (!enabled) return function () {};
-    return db.doc(path).onSnapshot(
+    var unsub = db.doc(path).onSnapshot(
       function (snap) {
         if (snap.metadata.hasPendingWrites) return;
         onRemoteChange(snap.exists ? snap.data() : null);
@@ -40,12 +41,14 @@ var Cloud = (function () {
         console.warn("[Cloud] watchDoc 실패", path, err);
       }
     );
+    activeUnsubs.push(unsub);
+    return unsub;
   }
 
   // 컬렉션 전체를 실시간 구독한다. 콜백에는 { 문서id: 데이터 } 형태로 넘어온다.
   function watchCollection(path, onRemoteChange) {
     if (!enabled) return function () {};
-    return db.collection(path).onSnapshot(
+    var unsub = db.collection(path).onSnapshot(
       function (snap) {
         if (snap.metadata.hasPendingWrites) return;
         var docs = {};
@@ -58,6 +61,20 @@ var Cloud = (function () {
         console.warn("[Cloud] watchCollection 실패", path, err);
       }
     );
+    activeUnsubs.push(unsub);
+    return unsub;
+  }
+
+  // 계정이 바뀔 때(로그인/로그아웃) 이전 계정의 실시간 구독을 전부 끊는다. 안 끊으면
+  // 이전 계정 경로에 대한 구독이 새 인증 상태에서 권한 오류를 계속 내거나, 새 계정
+  // 데이터에 이전 계정 콜백이 잘못 섞여 들어갈 수 있다.
+  function detachAll() {
+    activeUnsubs.forEach(function (unsub) {
+      try {
+        unsub();
+      } catch (e) {}
+    });
+    activeUnsubs = [];
   }
 
   function getDocOnce(path) {
@@ -126,6 +143,7 @@ var Cloud = (function () {
     getDocOnce: getDocOnce,
     getCollectionOnce: getCollectionOnce,
     writeDoc: writeDoc,
-    deleteDoc: deleteDoc
+    deleteDoc: deleteDoc,
+    detachAll: detachAll
   };
 })();

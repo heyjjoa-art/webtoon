@@ -3,12 +3,7 @@
 
   var params = new URLSearchParams(location.search);
   var seriesId = params.get("series");
-  var series = seriesId ? SeriesStore.getSeries(seriesId) : null;
-
-  if (!series) {
-    location.href = "toon.html";
-    return;
-  }
+  var series = null;
 
   var WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -65,14 +60,13 @@
           formatDday(next, new Date()) +
           "</span></div>"
         : "") +
-      (typeof AdminAuth !== "undefined" && AdminAuth.isActive()
+      (Session.isLoggedIn()
         ? '<a class="btn btn-primary btn-sm" href="admin.html?series=' +
           encodeURIComponent(seriesId) +
           '" style="margin-top:12px;">✍️ 이 시리즈 관리</a>'
         : "");
   }
 
-  window.__onAdminLogin = renderBanner;
   window.__webtoonOnSeriesListChanged = renderBanner;
 
   function episodeCardHtml(ep, visible) {
@@ -159,13 +153,23 @@
 
   window.__webtoonOnEpisodesChanged = renderList;
 
-  renderBanner();
-  renderList();
-
-  // 예약 발행이 시각에 맞춰 자동으로 열리도록, 그리고 팬 댓글이 시간에 따라 늘어나는
-  // 걸 화면을 켜둔 채로도 볼 수 있도록 1분마다 다시 그린다.
-  setInterval(function () {
+  // Firebase 인증 상태 확정은 비동기라, 첫 확정 전에는 이 계정의 시리즈 데이터가
+  // 아직 로드되지 않은 것뿐이다 - 그걸 "시리즈가 없다"고 착각해 toon.html로
+  // 튕겨내지 않도록 Session.ready를 기다린 뒤에야 진짜로 판단한다.
+  Session.ready.then(function () {
+    series = seriesId ? SeriesStore.getSeries(seriesId) : null;
+    if (!series) {
+      location.href = "toon.html";
+      return;
+    }
     renderBanner();
     renderList();
-  }, 60000);
+
+    // 예약 발행이 시각에 맞춰 자동으로 열리도록, 그리고 팬 댓글이 시간에 따라
+    // 늘어나는 걸 화면을 켜둔 채로도 볼 수 있도록 1분마다 다시 그린다.
+    setInterval(function () {
+      renderBanner();
+      renderList();
+    }, 60000);
+  });
 })();

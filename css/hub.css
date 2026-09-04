@@ -212,6 +212,25 @@
   line-height: 1.6;
 }
 
+.hub-empty-state {
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 30px 20px;
+}
+
+.hub-empty-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+
+.hub-empty-text {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin-bottom: 18px;
+}
+
 @media (max-width: 560px) {
   .hub-hero h1 {
     font-size: 32px;

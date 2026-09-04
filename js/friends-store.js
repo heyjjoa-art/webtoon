@@ -1,9 +1,12 @@
 // "나의 소개" 페이지 하단 친구소개 목록. about-store.js와 똑같이 작은 단일
 // 문서(목록 전체)라 "로컬 우선 + 마지막에 쓴 게 이긴다"로 충분하다. 사진은
 // PanelArtStore를 key1="friend", key2=친구id로 재사용해서 압축·캐시를 공짜로 얻는다.
+//
+// 모든 데이터는 로그인한 계정 것만 본다(Session.lsKey/Session.path). 로그아웃
+// 상태에서는 친구 목록이 항상 빈 배열이다 - DEFAULT_FRIENDS는 "이제 막 가입한
+// 계정"에만 적용되는 시작 값이지, 로그아웃 상태의 기본값이 아니다.
 var FriendsStore = (function () {
-  var FRIENDS_KEY = "webtoonFriends";
-  var DOC_PATH = "about/friends";
+  var DOC_PATH = "meta/friends";
   var MAX_FRIENDS = 12;
 
   var DEFAULT_FRIENDS = [
@@ -16,7 +19,9 @@ var FriendsStore = (function () {
   }
 
   function getRecord() {
-    var raw = localStorage.getItem(FRIENDS_KEY);
+    var key = Session.lsKey("webtoonFriends");
+    if (!key) return { friends: [], updatedAt: 0 };
+    var raw = localStorage.getItem(key);
     if (!raw) return blankRecord();
     try {
       var parsed = JSON.parse(raw);
@@ -32,9 +37,10 @@ var FriendsStore = (function () {
   }
 
   function saveFriends(list) {
+    if (!Session.isLoggedIn()) return { friends: [], updatedAt: 0 };
     var record = { friends: list, updatedAt: Date.now() };
-    localStorage.setItem(FRIENDS_KEY, JSON.stringify(record));
-    Cloud.writeDoc(DOC_PATH, record);
+    localStorage.setItem(Session.lsKey("webtoonFriends"), JSON.stringify(record));
+    Cloud.writeDoc(Session.path(DOC_PATH), record);
     if (window.__webtoonOnFriendsChanged) window.__webtoonOnFriendsChanged();
     return record;
   }
@@ -73,24 +79,28 @@ var FriendsStore = (function () {
   }
 
   function bootstrap() {
-    if (!Cloud.enabled) return;
-    Cloud.getDocOnce(DOC_PATH).then(function (remote) {
+    if (!Cloud.enabled || !Session.isLoggedIn()) return;
+    Cloud.getDocOnce(Session.path(DOC_PATH)).then(function (remote) {
       var local = getRecord();
+      var key = Session.lsKey("webtoonFriends");
+      if (!key) return;
       if (remote && (remote.updatedAt || 0) >= (local.updatedAt || 0)) {
-        localStorage.setItem(FRIENDS_KEY, JSON.stringify(remote));
+        localStorage.setItem(key, JSON.stringify(remote));
         if (window.__webtoonOnFriendsChanged) window.__webtoonOnFriendsChanged();
       } else if (local.updatedAt) {
-        Cloud.writeDoc(DOC_PATH, local);
+        Cloud.writeDoc(Session.path(DOC_PATH), local);
       }
-      Cloud.watchDoc(DOC_PATH, function (remoteDoc) {
+      Cloud.watchDoc(Session.path(DOC_PATH), function (remoteDoc) {
         if (!remoteDoc) return;
-        localStorage.setItem(FRIENDS_KEY, JSON.stringify(remoteDoc));
+        var k = Session.lsKey("webtoonFriends");
+        if (!k) return;
+        localStorage.setItem(k, JSON.stringify(remoteDoc));
         if (window.__webtoonOnFriendsChanged) window.__webtoonOnFriendsChanged();
       });
     });
   }
 
-  bootstrap();
+  Session.register({ bootstrap: bootstrap });
 
   return {
     MAX_FRIENDS: MAX_FRIENDS,
