@@ -249,6 +249,7 @@
 @media (max-width: 860px) {
   .editor-wrap {
     flex-direction: column;
+    align-items: stretch;
   }
   .side-panel {
     width: 100%;

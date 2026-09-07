@@ -25,8 +25,9 @@ service cloud.firestore {
 
     match /users/{uid}/{document=**} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if request.auth != null && request.auth.uid == uid
-                   && request.resource.size() < 950000;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+                             && request.resource.size() < 950000;
+      allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
     match /seriesList/{doc=**} { allow read: if request.auth != null; allow write: if false; }

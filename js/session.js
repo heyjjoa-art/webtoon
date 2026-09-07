@@ -257,6 +257,7 @@ var Session = (function () {
         '<button class="btn btn-primary" id="authGoBtn" style="width:100%">' +
         (isSignup ? "만들고 시작하기" : "로그인") +
         "</button>" +
+        '<button class="btn btn-ghost" id="authCancelBtn" style="width:100%;margin-top:8px;">취소</button>' +
         '<div style="text-align:center;margin-top:12px;font-size:13px;color:var(--color-text-faint);">' +
         (isSignup
           ? '아직 계정이 있다면 <a href="#" id="authSwitchLink">로그인</a>'
@@ -309,6 +310,9 @@ var Session = (function () {
       }
 
       overlay.querySelector("#authGoBtn").addEventListener("click", submit);
+      overlay.querySelector("#authCancelBtn").addEventListener("click", function () {
+        overlay.remove();
+      });
       [nameInput, pwInput, pw2Input].forEach(function (el) {
         if (!el) return;
         el.addEventListener("keydown", function (e) {
