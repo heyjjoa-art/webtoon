@@ -1,7 +1,10 @@
 // 그림판 화면 조립: 도구 패널·색상·레이어 패널 DOM을 만들고, 포인터 입력을
-// "펜/마우스=그리기", "손가락=화면 확대·이동·회전 및 두손가락/세손가락 탭
-// (되돌리기/다시하기)"로 갈라 보낸다. 팜리젝션은 이 갈라치기 자체로 해결된다 -
-// 손바닥이 닿아도 touch 포인터는 절대 그림을 그리지 않기 때문이다.
+// "손가락/펜/마우스 첫 번째 접점=지금 고른 도구로 그리기", "두 번째 손가락이
+// 닿으면 그 획을 정상 종료하고 화면 확대·이동·회전으로 전환", "두손가락/
+// 세손가락 빠른 탭=되돌리기/다시하기"로 갈라 보낸다. 스타일러스 없이
+// 손가락만으로 그리는 사용자가 많아(원래는 손가락=항상 팬/줌이었다) 첫 접점을
+// 그대로 그리기에 쓰게 바꿨다 - 팜 등 의도치 않은 두 번째 접점이 닿으면 즉시
+// 획을 끝내고 제스처로 넘어가므로 큰 오작동으로 번지지는 않는다.
 (function () {
   "use strict";
 
@@ -630,6 +633,19 @@
     var spaceHeld = false;
     var panDragMouse = null;
 
+    // 브라우저에 따라(특히 두 번째 손가락처럼 동시에 여러 포인터를 잡을 때)
+    // setPointerCapture가 예외를 던지는 경우가 있다 - 이게 그냥 새면 이 손가락은
+    // 그 뒤로 아무 입력도 못 받는 유령 포인터가 돼버리므로 실패해도 무시하고
+    // 계속 진행한다(캡처는 그리기 자체에 필수가 아니라 화면 밖으로 나가도
+    // 이벤트를 계속 받기 위한 보조 장치일 뿐이다).
+    function trySetCapture(pointerId) {
+      try {
+        area.setPointerCapture(pointerId);
+      } catch (err) {
+        /* 캡처 실패는 무시 - 그리기/제스처 로직은 그대로 진행한다 */
+      }
+    }
+
     document.addEventListener("keydown", function (e) {
       if (e.code === "Space") spaceHeld = true;
     });
@@ -696,10 +712,22 @@
 
     area.addEventListener("pointerdown", function (e) {
       if (e.pointerType === "touch") {
-        area.setPointerCapture(e.pointerId);
+        trySetCapture(e.pointerId);
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
         startGestureSessionIfNeeded();
-        if (touches.size === 2) {
+        if (touches.size === 1) {
+          // 스타일러스 없이 손가락만으로도 그릴 수 있어야 한다 - 첫 손가락은
+          // 마우스와 똑같이 지금 고른 도구를 쓴다. 두 번째 손가락이 닿으면
+          // 아래에서 이 획을 정상 종료하고 화면 확대/이동/회전으로 바뀐다.
+          drawPointerId = e.pointerId;
+          currentPressure = 0.5;
+          dispatchDown(activeToolKey, Paint.clientToCanvas(e.clientX, e.clientY), e);
+        } else if (touches.size === 2) {
+          if (drawPointerId !== null) {
+            var lastPt = touches.get(drawPointerId);
+            if (lastPt) dispatchUp(activeToolKey, Paint.clientToCanvas(lastPt.x, lastPt.y));
+            drawPointerId = null;
+          }
           var pts = touchPointsArray();
           pinch = {
             lastDist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
@@ -715,7 +743,7 @@
       }
       drawPointerId = e.pointerId;
       currentPressure = e.pressure;
-      area.setPointerCapture(e.pointerId);
+      trySetCapture(e.pointerId);
       var pt = Paint.clientToCanvas(e.clientX, e.clientY);
       dispatchDown(activeToolKey, pt, e);
     });
@@ -729,10 +757,8 @@
         if (gesture) gesture.moved += Math.hypot(dx, dy);
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-        if (touches.size === 1) {
-          Paint.view.tx += dx;
-          Paint.view.ty += dy;
-          Paint.updateStageTransform();
+        if (touches.size === 1 && e.pointerId === drawPointerId) {
+          dispatchMove(activeToolKey, Paint.clientToCanvas(e.clientX, e.clientY));
         } else if (touches.size === 2 && pinch) {
           var pts = touchPointsArray();
           var dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
@@ -768,6 +794,10 @@
     function onUp(e) {
       if (e.pointerType === "touch") {
         touches.delete(e.pointerId);
+        if (e.pointerId === drawPointerId) {
+          dispatchUp(activeToolKey, Paint.clientToCanvas(e.clientX, e.clientY));
+          drawPointerId = null;
+        }
         if (touches.size < 2) pinch = null;
         endGestureSessionIfDone();
         return;
