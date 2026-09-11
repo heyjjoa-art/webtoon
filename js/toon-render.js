@@ -32,6 +32,23 @@ var ToonRender = (function () {
     return found ? found.css : "";
   }
 
+  // 컷 모양(사각형 외의 대각선/평행사변형 등) - clip-path는 %라 어떤 크기의
+  // 컷에도 그대로 맞는다. 편집기(속성 패널)와 렌더러가 이 목록 하나만 본다.
+  var SHAPE_OPTIONS = [
+    { key: "rect", label: "사각형", clip: "" },
+    { key: "para-r", label: "평행사변형 ↗", clip: "polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%)" },
+    { key: "para-l", label: "평행사변형 ↖", clip: "polygon(0% 0%, 88% 0%, 100% 100%, 12% 100%)" },
+    { key: "diag-tl", label: "대각선(위)", clip: "polygon(0% 18%, 100% 0%, 100% 100%, 0% 100%)" },
+    { key: "diag-br", label: "대각선(아래)", clip: "polygon(0% 0%, 100% 0%, 100% 82%, 0% 100%)" }
+  ];
+  function clipPathFor(key) {
+    var found = null;
+    SHAPE_OPTIONS.forEach(function (s) {
+      if (s.key === key) found = s;
+    });
+    return (found && found.clip) || "";
+  }
+
   function contentBottom(episode) {
     var maxY = 0;
     (episode.panels || []).forEach(function (p) {
@@ -74,6 +91,7 @@ var ToonRender = (function () {
     el.style.height = pct(p.h, m.ch);
     el.style.zIndex = String(p.z || 0);
     el.style.setProperty("--tn-radius", String(p.radius || 0));
+    el.style.clipPath = clipPathFor(p.shape);
   }
 
   function positionText(el, t, m) {
@@ -167,6 +185,7 @@ var ToonRender = (function () {
 
   return {
     FONT_OPTIONS: FONT_OPTIONS,
+    SHAPE_OPTIONS: SHAPE_OPTIONS,
     contentBottom: contentBottom,
     metrics: metrics,
     panelEl: panelEl,

@@ -883,6 +883,8 @@
         '"><span>H</span><input type="number" id="propH" value="' +
         Math.round(p.h) +
         '"></div>' +
+        '<div class="field-row"><span>모양</span></div>' +
+        '<div class="shape-grid" id="propShapeGrid"></div>' +
         '<div class="field-row"><span>채우기</span></div>' +
         '<div class="segmented" id="propFit">' +
         '<button class="segmented-btn' +
@@ -905,6 +907,24 @@
 
       sidePanel.querySelector("#propPhotoBtn").innerHTML = Icons.svg("photo", 15) + " 사진 넣기";
       sidePanel.querySelector("#propPaintBtn").innerHTML = Icons.svg("brush", 15) + " 그리기";
+
+      var shapeGrid = sidePanel.querySelector("#propShapeGrid");
+      ToonRender.SHAPE_OPTIONS.forEach(function (s) {
+        var btn = document.createElement("button");
+        btn.className = "shape-swatch" + ((p.shape || "rect") === s.key ? " active" : "");
+        btn.dataset.tooltip = s.label;
+        var fill = document.createElement("div");
+        fill.className = "shape-fill";
+        if (s.clip) fill.style.clipPath = s.clip;
+        btn.appendChild(fill);
+        btn.addEventListener("click", function () {
+          p.shape = s.key;
+          render();
+          history.commit();
+          scheduleSave();
+        });
+        shapeGrid.appendChild(btn);
+      });
 
       function bindNum(id, apply) {
         var input = sidePanel.querySelector("#" + id);
