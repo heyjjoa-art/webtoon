@@ -820,6 +820,10 @@
         sidePanel.innerHTML = '<div class="center-empty" style="padding:40px 16px;">컷이나 말풍선을 눌러 속성을 편집하세요.</div>';
         return;
       }
+      // 좁은 화면(모바일)에서는 속성 패널이 드로어로 숨어있어서, 컷이나
+      // 말풍선을 눌러도 대사 입력칸이 화면 밖에 있으면 "입력이 안 된다"로
+      // 보인다 - 뭔가 선택됐으면 드로어를 자동으로 열어 바로 보이게 한다.
+      if (getComputedStyle(inspectorToggleBtn).display !== "none") setDrawerOpen(true);
       if (selection.length > 1) {
         renderMultiProps();
         return;
