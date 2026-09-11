@@ -82,6 +82,10 @@ var ToonRender = (function () {
       el.classList.remove(c);
     });
     el.classList.add("style-" + (t.style || "bubble"));
+    // 굵게+외곽선은 배경 유무와 독립된 별도 필드(punch)다 - 값이 없는 옛
+    // 회차는 "배경없음(sfx)"이면 원래 항상 이 효과가 켜져 있었던 것과 같게
+    // 기본값을 맞춘다(그래야 예전에 만든 효과음 텍스트가 그대로 보인다).
+    el.classList.toggle("punch", t.punch != null ? !!t.punch : t.style === "sfx");
     el.style.left = pct(t.x, m.cw);
     el.style.top = pct(t.y, m.ch);
     el.style.width = pct(t.w, m.cw);

@@ -702,7 +702,10 @@
       scheduleSave();
     });
 
-    function addTextBox(style) {
+    // 나레이션·효과음은 예전에 따로 있던 텍스트 종류였는데, 이제 말풍선
+    // 하나로 합쳐졌다 - 배경(말풍선/박스/배경없음)·글꼴·굵게 등 속성 패널의
+    // 옵션 조합으로 그 느낌을 전부 낼 수 있다.
+    function addTextBox() {
       var bottom = ToonRender.contentBottom(state);
       var t = {
         id: genId("t"),
@@ -710,10 +713,10 @@
         y: Math.max(0, bottom - 60),
         w: 240,
         z: maxTextZ() + 1,
-        text: style === "sfx" ? "쿠구궁" : "대사를 입력하세요",
-        style: style,
-        font: style === "sfx" ? "impact" : "default",
-        size: style === "sfx" ? 28 : 16,
+        text: "대사를 입력하세요",
+        style: "bubble",
+        font: "default",
+        size: 16,
         align: "center"
       };
       state.texts.push(t);
@@ -721,15 +724,7 @@
       history.commit();
       scheduleSave();
     }
-    document.getElementById("addBubbleBtn").addEventListener("click", function () {
-      addTextBox("bubble");
-    });
-    document.getElementById("addNarrationBtn").addEventListener("click", function () {
-      addTextBox("narration");
-    });
-    document.getElementById("addSfxBtn").addEventListener("click", function () {
-      addTextBox("sfx");
-    });
+    document.getElementById("addBubbleBtn").addEventListener("click", addTextBox);
 
     // ── 삭제 / 복제 / 앞뒤 순서(다중 선택 지원) ────────────────────
     function deleteSelection() {
@@ -983,7 +978,10 @@
         '<textarea id="propText" style="width:100%;min-height:60px;margin-bottom:8px;background:var(--color-surface-soft);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);padding:8px;font-family:inherit;font-size:13px;">' +
         escapeHtml(t.text) +
         "</textarea>" +
-        '<div class="field-row"><span>종류</span><select id="propStyle"><option value="bubble">말풍선</option><option value="narration">나레이션</option><option value="sfx">효과음</option></select></div>' +
+        '<div class="field-row"><span>배경</span><select id="propStyle"><option value="bubble">말풍선(둥근 배경)</option><option value="narration">박스(사각 배경)</option><option value="sfx">배경없음</option></select></div>' +
+        '<div class="field-row"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="propPunch"' +
+        ((t.punch != null ? t.punch : t.style === "sfx") ? " checked" : "") +
+        "> 굵게+외곽선(효과음 느낌)</label></div>" +
         '<div class="field-row"><span>글꼴</span><select id="propFont">' +
         ToonRender.FONT_OPTIONS.map(function (f) {
           return '<option value="' + f.key + '">' + f.label + "</option>";
@@ -1020,6 +1018,12 @@
       sidePanel.querySelector("#propStyle").value = t.style || "bubble";
       sidePanel.querySelector("#propStyle").addEventListener("change", function (e) {
         t.style = e.target.value;
+        render();
+        history.commit();
+        scheduleSave();
+      });
+      sidePanel.querySelector("#propPunch").addEventListener("change", function (e) {
+        t.punch = e.target.checked;
         render();
         history.commit();
         scheduleSave();
@@ -1234,8 +1238,6 @@
     document.getElementById("backBtn").innerHTML = Icons.svg("sendBack", 15) + " 맨뒤";
     document.getElementById("delBtn").innerHTML = Icons.svg("trash", 15) + " 삭제";
     document.getElementById("addBubbleBtn").innerHTML = Icons.svg("bubble", 15) + " 말풍선";
-    document.getElementById("addNarrationBtn").innerHTML = Icons.svg("narration", 15) + " 나레이션";
-    document.getElementById("addSfxBtn").innerHTML = Icons.svg("sfx", 15) + " 효과음";
     document.getElementById("undoBtn").innerHTML = Icons.svg("undo", 18);
     document.getElementById("redoBtn").innerHTML = Icons.svg("redo", 18);
 
