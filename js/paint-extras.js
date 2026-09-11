@@ -83,35 +83,149 @@
   }
 
   // ── 사각 선택 ────────────────────────────────────────────────────
+  // 예전에는 선택을 확정하면(selectUp) 미리보기를 지워버려서 화면에 선택
+  // 영역이 전혀 안 보였다(실제로는 스크린톤/빗금/채우기가 그 영역을 그대로
+  // 존중하고 있었는데도) - 이제 선택이 있는 동안은 항상 점선 테두리와
+  // 손잡이를 그려두고, 그 손잡이/안쪽을 다시 잡아 크기 조정·이동도 할 수
+  // 있게 했다. 두께/손잡이 크기를 화면 배율로 나눠서, 얼마나 확대·축소해도
+  // 항상 같은 화면 두께로 보인다.
   var selStart = null;
-  function selectDown(x, y) {
-    selStart = { x: x, y: y };
+  var selDrag = null; // { mode:'move'|'nw'|'n'|...|'w', startRect, startX, startY }
+  var HANDLE_TOL = 16;
+
+  function selectionHandlePoints(r) {
+    var left = r.x,
+      right = r.x + r.w,
+      top = r.y,
+      bottom = r.y + r.h,
+      midX = r.x + r.w / 2,
+      midY = r.y + r.h / 2;
+    return {
+      nw: [left, top], n: [midX, top], ne: [right, top],
+      e: [right, midY], se: [right, bottom], s: [midX, bottom],
+      sw: [left, bottom], w: [left, midY]
+    };
   }
-  function selectMove(x, y) {
-    if (!selStart) return;
+
+  function hitTestSelection(x, y) {
+    var r = Paint.selectionRect;
+    if (!r) return null;
+    var tol = HANDLE_TOL / (Paint.view.scale || 1);
+    var handles = selectionHandlePoints(r);
+    var found = null;
+    Object.keys(handles).forEach(function (key) {
+      if (found) return;
+      var p = handles[key];
+      if (Math.hypot(x - p[0], y - p[1]) <= tol) found = key;
+    });
+    if (found) return found;
+    if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) return "move";
+    return null;
+  }
+
+  function drawSelectionOverlay(rect) {
     var ctx = Paint.els.overlayCtx;
     ctx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
+    if (!rect || rect.w <= 0 || rect.h <= 0) return;
+    var scale = Paint.view.scale || 1;
     ctx.save();
+    ctx.strokeStyle = "rgba(255,138,91,0.95)";
+    ctx.lineWidth = 2 / scale;
+    ctx.setLineDash([8 / scale, 6 / scale]);
+    ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    if (Paint.selectionRect !== rect) return; // 새로 긋는 중(아직 확정 전)에는 손잡이를 안 보여준다
+    var handles = selectionHandlePoints(rect);
+    var hr = 5 / scale;
+    ctx.save();
+    ctx.fillStyle = "#ff8a5b";
     ctx.strokeStyle = "#ffffff";
-    ctx.setLineDash([8, 6]);
-    ctx.lineWidth = 2;
-    ctx.strokeRect(Math.min(selStart.x, x), Math.min(selStart.y, y), Math.abs(x - selStart.x), Math.abs(y - selStart.y));
+    ctx.lineWidth = 1.5 / scale;
+    Object.keys(handles).forEach(function (key) {
+      var p = handles[key];
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], hr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
     ctx.restore();
   }
+
+  function selectDown(x, y) {
+    var hit = hitTestSelection(x, y);
+    if (hit) {
+      selDrag = { mode: hit, startRect: Object.assign({}, Paint.selectionRect), startX: x, startY: y };
+      selStart = null;
+      return;
+    }
+    selDrag = null;
+    selStart = { x: x, y: y };
+  }
+
+  function selectMove(x, y) {
+    if (selDrag) {
+      var r = selDrag.startRect;
+      var dx = x - selDrag.startX;
+      var dy = y - selDrag.startY;
+      var nr = Object.assign({}, r);
+      if (selDrag.mode === "move") {
+        nr.x = r.x + dx;
+        nr.y = r.y + dy;
+      } else {
+        if (selDrag.mode.indexOf("e") !== -1) nr.w = Math.max(4, r.w + dx);
+        if (selDrag.mode.indexOf("w") !== -1) {
+          nr.w = Math.max(4, r.w - dx);
+          nr.x = r.x + (r.w - nr.w);
+        }
+        if (selDrag.mode.indexOf("s") !== -1) nr.h = Math.max(4, r.h + dy);
+        if (selDrag.mode.indexOf("n") !== -1) {
+          nr.h = Math.max(4, r.h - dy);
+          nr.y = r.y + (r.h - nr.h);
+        }
+      }
+      nr.x = Math.max(0, Math.min(nr.x, Paint.nativeW - nr.w));
+      nr.y = Math.max(0, Math.min(nr.y, Paint.nativeH - nr.h));
+      Paint.selectionRect = nr;
+      drawSelectionOverlay(nr);
+      return;
+    }
+    if (!selStart) return;
+    drawSelectionOverlay({
+      x: Math.min(selStart.x, x),
+      y: Math.min(selStart.y, y),
+      w: Math.abs(x - selStart.x),
+      h: Math.abs(y - selStart.y)
+    });
+  }
+
   function selectUp(x, y) {
+    if (selDrag) {
+      selDrag = null;
+      drawSelectionOverlay(Paint.selectionRect);
+      if (Paint.onSelectionChanged) Paint.onSelectionChanged();
+      return;
+    }
     if (!selStart) return;
     var rx = Math.max(0, Math.min(selStart.x, x));
     var ry = Math.max(0, Math.min(selStart.y, y));
-    var rw = Math.min(Paint.nativeW, Math.abs(x - selStart.x));
-    var rh = Math.min(Paint.nativeH, Math.abs(y - selStart.y));
+    var rw = Math.min(Paint.nativeW - rx, Math.abs(x - selStart.x));
+    var rh = Math.min(Paint.nativeH - ry, Math.abs(y - selStart.y));
     Paint.selectionRect = rw > 2 && rh > 2 ? { x: rx, y: ry, w: rw, h: rh } : null;
     selStart = null;
-    Paint.els.overlayCtx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
+    drawSelectionOverlay(Paint.selectionRect);
     if (Paint.onSelectionChanged) Paint.onSelectionChanged();
   }
+
   function clearSelection() {
     Paint.selectionRect = null;
+    drawSelectionOverlay(null);
     if (Paint.onSelectionChanged) Paint.onSelectionChanged();
+  }
+
+  // 다른 도구를 고르거나 화면을 확대·축소해도(줌 배지, 핀치) 선택 테두리가
+  // 계속 같은 자리에 같은 굵기로 보이게 다시 그린다.
+  function refreshSelectionOverlay() {
+    drawSelectionOverlay(Paint.selectionRect);
   }
 
   // ── 자유 변형 ───────────────────────────────────────────────────
@@ -402,6 +516,7 @@
   Paint.selectMove = selectMove;
   Paint.selectUp = selectUp;
   Paint.clearSelection = clearSelection;
+  Paint.refreshSelectionOverlay = refreshSelectionOverlay;
   Paint.transformBegin = transformBegin;
   Paint.transformMoveBy = transformMoveBy;
   Paint.transformScaleRotateBy = transformScaleRotateBy;

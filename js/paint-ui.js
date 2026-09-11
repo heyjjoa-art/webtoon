@@ -141,6 +141,9 @@
     Array.prototype.forEach.call(document.querySelectorAll(".tool-btn"), function (btn) {
       btn.classList.toggle("active", btn.dataset.key === key);
     });
+    // 도구를 바꿔도 선택 영역 점선 테두리는 계속 보여야 한다(선택은 도구와
+    // 무관하게 채우기/스크린톤/빗금이 참조하는 전역 상태라서).
+    if (Paint.refreshSelectionOverlay) Paint.refreshSelectionOverlay();
   }
 
   var LONG_PRESS_MS = 450;
@@ -253,6 +256,9 @@
   function syncZoomVal() {
     var el = document.getElementById("zoomVal");
     if (el) el.textContent = Math.round(Paint.view.scale * 100) + "%";
+    // 선택 테두리/손잡이 굵기는 화면 배율로 나눠서 그리므로, 배율이 바뀔
+    // 때마다 다시 그려야 항상 같은 화면 두께를 유지한다.
+    if (Paint.refreshSelectionOverlay) Paint.refreshSelectionOverlay();
   }
 
   // 저장해둔 브러시 프리셋(타입+굵기+농도+보정 묶음) 한 줄. 매번 슬라이더를
@@ -797,6 +803,9 @@
     var touches = new Map(); // pointerId -> {x,y}
     var gesture = null; // { maxTouches, startTime, moved }
     var pinch = null; // { lastDist, lastAngle }
+    // 이보다 가까운 두 번째 접점은 손바닥/보조 손가락으로 보고 무시한다(진짜
+    // 두 손가락 제스처는 자연스럽게 이보다 훨씬 떨어진다).
+    var PALM_REJECT_DIST = 80;
 
     function touchPointsArray() {
       return Array.from(touches.values());
@@ -864,14 +873,22 @@
           currentPressure = 0.5;
           dispatchDown(activeToolKey, Paint.clientToCanvas(e.clientX, e.clientY), e);
         } else if (touches.size === 2) {
+          var pts = touchPointsArray();
+          var spacing = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          // 진짜 두 손가락 핀치는 손가락이 자연스럽게 떨어져 있다 - 그리는
+          // 중에 손바닥이나 다른 손가락이 살짝 스친 것까지 확대/회전 제스처로
+          // 받아들이면, 화면이 조금씩 틀어져서 그 뒤로는 누른 자리와 실제
+          // 그려지는 자리가 계속 어긋나 버린다(원인을 찾기도 어려운 버그였다).
+          // 두 접점이 가까우면 그냥 잡음으로 보고 무시하고, 그리던 손가락은
+          // 손대지 않는다 - 방해가 사라지면(손을 떼면) 자동으로 이어 그려진다.
+          if (spacing < PALM_REJECT_DIST) return;
           if (drawPointerId !== null) {
             var lastPt = touches.get(drawPointerId);
             if (lastPt) dispatchUp(activeToolKey, Paint.clientToCanvas(lastPt.x, lastPt.y));
             drawPointerId = null;
           }
-          var pts = touchPointsArray();
           pinch = {
-            lastDist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+            lastDist: spacing,
             lastAngle: (Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) * 180) / Math.PI
           };
         }
