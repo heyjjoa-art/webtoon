@@ -227,7 +227,15 @@ body {
   margin-bottom: 10px;
 }
 
-#tonePreviewCanvas,
-#hatchPreviewCanvas {
+#patternPreviewCanvas {
   aspect-ratio: 240 / 70;
+}
+
+/* 도구 옵션 패널(브러시/채우기/도형/집중선/패턴/선택/변형) - 한 번에 하나만
+   보인다(js/paint-ui.js의 showInspectorPage). */
+.tool-panel-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
 }
