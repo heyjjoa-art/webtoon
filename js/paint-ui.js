@@ -140,6 +140,10 @@
       buildColorSection();
     };
     Paint.onSelectionChanged = function () {};
+    Paint.onStickerChanged = function () {
+      var row = document.getElementById("stickerActionsRow");
+      if (row) row.hidden = !Paint.hasSticker();
+    };
     showInspectorPage(TOOL_PANEL_FOR[activeToolKey] || "brush");
     updateUndoRedoState();
     window.addEventListener("resize", function () {
@@ -151,6 +155,9 @@
   function setTool(key) {
     if (Paint.isTransforming() && activeToolKey === "transform" && key !== "transform") {
       Paint.transformCommit();
+    }
+    if (Paint.hasSticker() && activeToolKey === "effect" && key !== "effect") {
+      Paint.stickerCommit();
     }
     activeToolKey = key;
     // 직선/사각형/원은 도구 레일에서는 "도형" 하나로 묶여있고, 어떤 모양을
@@ -428,7 +435,8 @@
       Math.round((Paint.flashIntensity != null ? Paint.flashIntensity : 0.8) * 100) +
       "</span></div>" +
       '<canvas class="tool-preview" id="effectPreviewCanvas" width="240" height="70"></canvas>' +
-      '<p class="tool-panel-hint">캔버스를 눌러 중심을 잡고 드래그해 크기(발효과는 방향도)를 정한 뒤 손을 뗍니다.</p>' +
+      '<p class="tool-panel-hint">캔버스를 눌러 중심을 잡고 드래그해 크기(발효과는 방향도)를 정한 뒤 손을 떼면 스티커처럼 붙습니다. 파란 손잡이로 회전, 주황 손잡이로 크기, 안쪽을 드래그해 이동시킬 수 있어요.</p>' +
+      '<div class="field-row" id="stickerActionsRow" hidden><button class="btn btn-primary btn-sm" id="stickerCommitBtn" style="flex:1;">확정</button><button class="btn btn-ghost btn-sm" id="stickerCancelBtn" style="flex:1;">취소</button></div>' +
       "</div>" +
       // ── 선택 ──────────────────────────────────────────────────────
       '<div class="tool-panel" data-tool="select">' +
@@ -575,6 +583,7 @@
       effectGrid.appendChild(chip);
     });
     function setEffectKind(kind) {
+      if (Paint.hasSticker()) Paint.stickerCommit();
       Paint.effectKind = kind;
       Array.prototype.forEach.call(effectGrid.querySelectorAll(".brush-chip"), function (chip, i) {
         chip.classList.toggle("active", EFFECT_KINDS[i].key === kind);
@@ -584,6 +593,20 @@
       redrawEffectPreview();
     }
     setEffectKind(Paint.effectKind);
+    var stickerActionsRow = el.querySelector("#stickerActionsRow");
+    if (stickerActionsRow) stickerActionsRow.hidden = !Paint.hasSticker();
+    var stickerCommitBtn = el.querySelector("#stickerCommitBtn");
+    if (stickerCommitBtn) {
+      stickerCommitBtn.addEventListener("click", function () {
+        if (Paint.hasSticker()) Paint.stickerCommit();
+      });
+    }
+    var stickerCancelBtn = el.querySelector("#stickerCancelBtn");
+    if (stickerCancelBtn) {
+      stickerCancelBtn.addEventListener("click", function () {
+        if (Paint.hasSticker()) Paint.stickerCancel();
+      });
+    }
 
     var symSelect = el.querySelector("#symmetrySelect");
     symSelect.value = Paint.symmetry.mode;
@@ -925,6 +948,7 @@
     document.getElementById("clearBtn").addEventListener("click", function () {
       var layer = Paint.getActiveLayer();
       if (!layer || layer.locked) return;
+      if (Paint.hasSticker()) Paint.stickerCancel();
       if (!confirm("이 레이어를 전부 지울까요?")) return;
       Paint.strokeStart(layer.id);
       layer.ctx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
@@ -935,6 +959,7 @@
     });
     document.getElementById("paintBackBtn").addEventListener("click", function () {
       if (Paint.isTransforming()) Paint.transformCommit();
+      if (Paint.hasSticker()) Paint.stickerCommit();
       var status = document.getElementById("paintSaveStatus");
       status.textContent = "☁️ 저장 중...";
       Paint.save().then(function () {
@@ -1061,8 +1086,15 @@
       } else if (tool === "eyedropper") Paint.eyedropAt(pt.x, pt.y);
       else if (tool === "select") Paint.selectDown(pt.x, pt.y);
       else if (tool === "shape") Paint.shapeDown(pt.x, pt.y);
-      else if (tool === "effect") Paint.effectDown(pt.x, pt.y);
-      else if (tool === "transform" && Paint.isTransforming()) transformDragStart = pt;
+      else if (tool === "effect") {
+        // 이미 떠 있는 스티커의 손잡이/내부를 짚었으면 그걸 조작하고, 빈
+        // 자리를 짚었으면 그 스티커는 확정하고 새 효과를 시작한다.
+        if (Paint.hasSticker()) {
+          if (Paint.stickerPointerDown(pt.x, pt.y)) return;
+          Paint.stickerCommit();
+        }
+        Paint.effectDown(pt.x, pt.y);
+      } else if (tool === "transform" && Paint.isTransforming()) transformDragStart = pt;
     }
 
     var transformDragStart = null;
@@ -1071,8 +1103,10 @@
       if (tool === "brush" || tool === "eraser") Paint.brushMove(pt.x, pt.y, currentPressure);
       else if (tool === "select") Paint.selectMove(pt.x, pt.y);
       else if (tool === "shape") Paint.shapeMove(pt.x, pt.y);
-      else if (tool === "effect") Paint.effectMove(pt.x, pt.y);
-      else if (tool === "transform" && transformDragStart) {
+      else if (tool === "effect") {
+        if (Paint.isStickerDragging()) Paint.stickerPointerMove(pt.x, pt.y);
+        else Paint.effectMove(pt.x, pt.y);
+      } else if (tool === "transform" && transformDragStart) {
         Paint.transformMoveBy(pt.x - transformDragStart.x, pt.y - transformDragStart.y);
         transformDragStart = pt;
       }
@@ -1082,8 +1116,10 @@
       if (tool === "brush" || tool === "eraser") Paint.brushUp(pt.x, pt.y);
       else if (tool === "select") Paint.selectUp(pt.x, pt.y);
       else if (tool === "shape") Paint.shapeUp(pt.x, pt.y);
-      else if (tool === "effect") Paint.effectUp(pt.x, pt.y);
-      else if (tool === "transform") transformDragStart = null;
+      else if (tool === "effect") {
+        if (Paint.isStickerDragging()) Paint.stickerPointerUp();
+        else Paint.effectUp(pt.x, pt.y);
+      } else if (tool === "transform") transformDragStart = null;
     }
 
     var currentPressure = 0.5;
@@ -1153,6 +1189,8 @@
           var deltaAngle = angle - pinch.lastAngle;
           if (activeToolKey === "transform" && Paint.isTransforming()) {
             Paint.transformScaleRotateBy(scaleFactor, deltaAngle);
+          } else if (activeToolKey === "effect" && Paint.hasSticker()) {
+            Paint.stickerScaleRotateBy(scaleFactor, deltaAngle);
           } else {
             Paint.view.scale = Math.max(0.05, Math.min(8, Paint.view.scale * scaleFactor));
             Paint.view.rotation += deltaAngle;

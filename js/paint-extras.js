@@ -607,21 +607,252 @@
     ctx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
     drawEffectByKind(ctx, effectStart.x, effectStart.y, x, y);
   }
+  // 손을 떼면 곧바로 레이어에 굳혀버리지 않고, 스티커(떠 있는 오브젝트)로
+  // 남겨서 이동/크기/회전을 계속 만질 수 있게 한다 - 실제 픽셀에 합쳐지는
+  // 시점은 stickerCommit(다른 도구로 바꾸거나 새 효과를 또 찍을 때)이다.
   function effectUp(x, y) {
     if (!effectStart) return;
-    var radius = Math.hypot(x - effectStart.x, y - effectStart.y);
+    var x0 = effectStart.x,
+      y0 = effectStart.y;
+    var radius = Math.hypot(x - x0, y - y0);
+    effectStart = null;
+    Paint.els.overlayCtx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
+    if (radius <= 4) {
+      Paint.composite();
+      return;
+    }
+    beginEffectSticker(x0, y0, x, y, radius);
+  }
+
+  // ── 효과 스티커 ─────────────────────────────────────────────────
+  // 찍은 효과를 그 자리에서 바로 픽셀로 굳히지 않고, 별도 캔버스(stickerSrc)에
+  // 담아 이동/크기/회전을 계속 조작할 수 있는 "떠 있는" 오브젝트로 둔다.
+  // 확정(stickerCommit)해야 비로소 활성 레이어에 합쳐진다.
+  var stickerSrc = null;
+  var stickerState = null; // { box:{x,y,w,h}, rotation, layerId }
+  var stickerDrag = null; // { mode:'move'|'nw'|'ne'|'se'|'sw'|'rotate', startX, startY, startBox, startRotation, cx, cy }
+  var STICKER_ROTATE_OFFSET = 28;
+
+  function beginEffectSticker(x0, y0, x1, y1, radius) {
+    if (stickerState) stickerCommit();
+    var pad = radius + 30;
+    var minX = Math.min(x0, x1) - pad,
+      minY = Math.min(y0, y1) - pad;
+    var maxX = Math.max(x0, x1) + pad,
+      maxY = Math.max(y0, y1) + pad;
+    var bx = Math.max(0, minX),
+      by = Math.max(0, minY);
+    var bw = Math.min(Paint.nativeW, maxX) - bx;
+    var bh = Math.min(Paint.nativeH, maxY) - by;
+    if (bw <= 0 || bh <= 0) {
+      Paint.composite();
+      return;
+    }
+    var full = document.createElement("canvas");
+    full.width = Paint.nativeW;
+    full.height = Paint.nativeH;
+    drawEffectByKind(full.getContext("2d"), x0, y0, x1, y1);
+    var src = document.createElement("canvas");
+    src.width = bw;
+    src.height = bh;
+    src.getContext("2d").drawImage(full, bx, by, bw, bh, 0, 0, bw, bh);
+    stickerSrc = src;
     var layer = Paint.getActiveLayer();
-    if (layer && !layer.locked && radius > 4) {
+    stickerState = { box: { x: bx, y: by, w: bw, h: bh }, rotation: 0, layerId: layer && layer.id };
+    drawStickerOverlay();
+    if (Paint.onStickerChanged) Paint.onStickerChanged();
+  }
+
+  function stickerHandlePoints(box, rotation) {
+    var cx = box.x + box.w / 2,
+      cy = box.y + box.h / 2;
+    var hw = box.w / 2,
+      hh = box.h / 2;
+    var rad = (rotation * Math.PI) / 180;
+    var cos = Math.cos(rad),
+      sin = Math.sin(rad);
+    var offset = STICKER_ROTATE_OFFSET / (Paint.view.scale || 1);
+    function toWorld(lx, ly) {
+      return [cx + lx * cos - ly * sin, cy + lx * sin + ly * cos];
+    }
+    return {
+      nw: toWorld(-hw, -hh),
+      ne: toWorld(hw, -hh),
+      se: toWorld(hw, hh),
+      sw: toWorld(-hw, hh),
+      n: toWorld(0, -hh),
+      rotate: toWorld(0, -hh - offset)
+    };
+  }
+
+  function isInsideStickerBox(x, y, box, rotation) {
+    var cx = box.x + box.w / 2,
+      cy = box.y + box.h / 2;
+    var rad = (-rotation * Math.PI) / 180;
+    var dx = x - cx,
+      dy = y - cy;
+    var lx = dx * Math.cos(rad) - dy * Math.sin(rad);
+    var ly = dx * Math.sin(rad) + dy * Math.cos(rad);
+    return Math.abs(lx) <= box.w / 2 && Math.abs(ly) <= box.h / 2;
+  }
+
+  function hitTestSticker(x, y) {
+    if (!stickerState) return null;
+    var tol = 18 / (Paint.view.scale || 1);
+    var handles = stickerHandlePoints(stickerState.box, stickerState.rotation);
+    var found = null;
+    ["rotate", "nw", "ne", "se", "sw"].forEach(function (key) {
+      if (found) return;
+      var p = handles[key];
+      if (Math.hypot(x - p[0], y - p[1]) <= tol) found = key;
+    });
+    if (found) return found;
+    if (isInsideStickerBox(x, y, stickerState.box, stickerState.rotation)) return "move";
+    return null;
+  }
+
+  function drawStickerOverlay() {
+    var ctx = Paint.els.overlayCtx;
+    ctx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
+    if (!stickerState || !stickerSrc) return;
+    var b = stickerState.box;
+    var scale = Paint.view.scale || 1;
+    ctx.save();
+    ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
+    ctx.rotate((stickerState.rotation * Math.PI) / 180);
+    ctx.drawImage(stickerSrc, -b.w / 2, -b.h / 2, b.w, b.h);
+    ctx.strokeStyle = "rgba(255,180,84,0.95)";
+    ctx.lineWidth = 2 / scale;
+    ctx.setLineDash([8 / scale, 6 / scale]);
+    ctx.strokeRect(-b.w / 2, -b.h / 2, b.w, b.h);
+    ctx.restore();
+
+    var handles = stickerHandlePoints(b, stickerState.rotation);
+    var hr = 7 / scale;
+    ctx.save();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "rgba(255,180,84,0.95)";
+    ctx.lineWidth = 1.5 / scale;
+    ctx.beginPath();
+    ctx.moveTo(handles.n[0], handles.n[1]);
+    ctx.lineTo(handles.rotate[0], handles.rotate[1]);
+    ctx.stroke();
+    ["nw", "ne", "se", "sw"].forEach(function (key) {
+      var p = handles[key];
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], hr, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffb454";
+      ctx.fill();
+      ctx.stroke();
+    });
+    ctx.beginPath();
+    ctx.arc(handles.rotate[0], handles.rotate[1], hr, 0, Math.PI * 2);
+    ctx.fillStyle = "#4da3ff";
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function hasSticker() {
+    return !!stickerState;
+  }
+  function isStickerDragging() {
+    return !!stickerDrag;
+  }
+
+  function stickerPointerDown(x, y) {
+    var hit = hitTestSticker(x, y);
+    if (!hit) return false;
+    var b = stickerState.box;
+    stickerDrag = {
+      mode: hit,
+      startX: x,
+      startY: y,
+      startBox: Object.assign({}, b),
+      startRotation: stickerState.rotation,
+      cx: b.x + b.w / 2,
+      cy: b.y + b.h / 2
+    };
+    return true;
+  }
+
+  function stickerPointerMove(x, y) {
+    if (!stickerDrag) return;
+    var d = stickerDrag;
+    if (d.mode === "move") {
+      stickerState.box.x = d.startBox.x + (x - d.startX);
+      stickerState.box.y = d.startBox.y + (y - d.startY);
+    } else if (d.mode === "rotate") {
+      var a0 = Math.atan2(d.startY - d.cy, d.startX - d.cx);
+      var a1 = Math.atan2(y - d.cy, x - d.cx);
+      stickerState.rotation = d.startRotation + ((a1 - a0) * 180) / Math.PI;
+    } else {
+      var dist0 = Math.hypot(d.startX - d.cx, d.startY - d.cy);
+      var dist1 = Math.hypot(x - d.cx, y - d.cy);
+      var ratio = dist0 > 1 ? dist1 / dist0 : 1;
+      var newW = Math.max(8, d.startBox.w * ratio);
+      var newH = Math.max(8, d.startBox.h * ratio);
+      stickerState.box.w = newW;
+      stickerState.box.h = newH;
+      stickerState.box.x = d.cx - newW / 2;
+      stickerState.box.y = d.cy - newH / 2;
+    }
+    drawStickerOverlay();
+  }
+
+  function stickerPointerUp() {
+    stickerDrag = null;
+  }
+
+  // 두 손가락 핀치로도(모바일에서 손잡이를 정확히 짚기 어려우니) 크기·회전을
+  // 조작할 수 있게 - 변형 도구의 핀치 동작과 같은 느낌.
+  function stickerScaleRotateBy(scaleFactor, deltaDeg) {
+    if (!stickerState) return;
+    var b = stickerState.box;
+    var cx = b.x + b.w / 2,
+      cy = b.y + b.h / 2;
+    var newW = Math.max(8, b.w * scaleFactor);
+    var newH = Math.max(8, b.h * scaleFactor);
+    b.x = cx - newW / 2;
+    b.y = cy - newH / 2;
+    b.w = newW;
+    b.h = newH;
+    stickerState.rotation += deltaDeg;
+    drawStickerOverlay();
+  }
+
+  function stickerCommit() {
+    if (!stickerState) return;
+    var b = stickerState.box;
+    var layer = Paint.getLayer(stickerState.layerId) || Paint.getActiveLayer();
+    if (layer && !layer.locked) {
       Paint.strokeStart(layer.id);
-      drawEffectByKind(layer.ctx, effectStart.x, effectStart.y, x, y);
-      Paint.extendDirty(effectStart.x, effectStart.y, radius + 30);
-      Paint.extendDirty(x, y, radius + 30);
+      layer.ctx.save();
+      layer.ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
+      layer.ctx.rotate((stickerState.rotation * Math.PI) / 180);
+      layer.ctx.drawImage(stickerSrc, -b.w / 2, -b.h / 2, b.w, b.h);
+      layer.ctx.restore();
+      var pad = Math.max(b.w, b.h) * 0.5;
+      Paint.extendDirty(b.x, b.y, pad);
+      Paint.extendDirty(b.x + b.w, b.y + b.h, pad);
       Paint.strokeEnd();
     }
-    effectStart = null;
+    stickerSrc = null;
+    stickerState = null;
+    stickerDrag = null;
     Paint.els.overlayCtx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
     Paint.composite();
     if (Paint.onLayersChanged) Paint.onLayersChanged();
+    if (Paint.onStickerChanged) Paint.onStickerChanged();
+  }
+
+  function stickerCancel() {
+    stickerSrc = null;
+    stickerState = null;
+    stickerDrag = null;
+    Paint.els.overlayCtx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
+    Paint.composite();
+    if (Paint.onStickerChanged) Paint.onStickerChanged();
   }
 
   // ── 스크린톤 ────────────────────────────────────────────────────
@@ -772,6 +1003,14 @@
   Paint.effectMove = effectMove;
   Paint.effectUp = effectUp;
   Paint.previewEffect = previewEffect;
+  Paint.hasSticker = hasSticker;
+  Paint.isStickerDragging = isStickerDragging;
+  Paint.stickerPointerDown = stickerPointerDown;
+  Paint.stickerPointerMove = stickerPointerMove;
+  Paint.stickerPointerUp = stickerPointerUp;
+  Paint.stickerScaleRotateBy = stickerScaleRotateBy;
+  Paint.stickerCommit = stickerCommit;
+  Paint.stickerCancel = stickerCancel;
   Paint.applyScreentone = applyScreentone;
   Paint.applyHatching = applyHatching;
   Paint.previewScreentone = previewScreentone;
