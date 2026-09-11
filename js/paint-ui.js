@@ -200,11 +200,62 @@
     if (el) el.textContent = Math.round(Paint.view.scale * 100) + "%";
   }
 
+  // 저장해둔 브러시 프리셋(타입+굵기+농도+보정 묶음) 한 줄. 매번 슬라이더를
+  // 다시 맞추지 않아도 되게, 자주 쓰는 조합에 이름을 붙여뒀다 한 번에 적용한다.
+  function buildPresetRow(container) {
+    container.innerHTML = "";
+    BrushPresetStore.getAll().forEach(function (p) {
+      var chip = document.createElement("div");
+      chip.className = "preset-chip";
+
+      var applyBtn = document.createElement("button");
+      applyBtn.className = "brush-chip";
+      applyBtn.textContent = p.name;
+      applyBtn.dataset.tooltip = p.type + " · " + p.size + "px";
+      applyBtn.addEventListener("click", function () {
+        Paint.brush.type = p.type;
+        Paint.brush.size = p.size;
+        Paint.brush.opacity = p.opacity;
+        Paint.brush.smoothing = p.smoothing;
+        buildBrushSection();
+      });
+
+      var delBtn = document.createElement("button");
+      delBtn.className = "icon-btn danger";
+      delBtn.dataset.tooltip = "프리셋 삭제";
+      delBtn.innerHTML = Icons.svg("close", 12);
+      delBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        BrushPresetStore.deletePreset(p.name);
+        buildBrushSection();
+      });
+
+      chip.appendChild(applyBtn);
+      chip.appendChild(delBtn);
+      container.appendChild(chip);
+    });
+
+    var saveBtn = document.createElement("button");
+    saveBtn.className = "icon-btn";
+    saveBtn.dataset.tooltip = "현재 설정을 프리셋으로 저장";
+    saveBtn.innerHTML = Icons.svg("plus", 14);
+    saveBtn.addEventListener("click", function () {
+      var name = window.prompt("프리셋 이름을 입력하세요", "");
+      if (!name) return;
+      name = name.trim();
+      if (!name) return;
+      BrushPresetStore.savePreset(name, Paint.brush);
+      buildBrushSection();
+    });
+    container.appendChild(saveBtn);
+  }
+
   // ── 브러시 섹션 ─────────────────────────────────────────────────
   function buildBrushSection() {
     var el = document.getElementById("brushSection");
     el.innerHTML =
       "<h4>브러시</h4>" +
+      '<div class="preset-row" id="presetRow"></div>' +
       '<div class="brush-grid" id="brushTypeGrid"></div>' +
       '<div class="field-row"><span>굵기</span><input type="range" id="brushSize" min="1" max="180" value="' +
       Paint.brush.size +
@@ -247,6 +298,8 @@
       '<div class="field-row"><span>간격</span><input type="range" id="toneSpacing" min="4" max="30" value="10"><span id="toneSpacingVal">10</span></div>' +
       '<div class="field-row"><span>각도</span><input type="range" id="toneAngle" min="0" max="90" value="45"><span id="toneAngleVal">45</span></div>' +
       '<button class="btn btn-ghost btn-sm" id="toneApplyBtn" style="width:100%;">선택 영역에 스크린톤 적용</button>';
+
+    buildPresetRow(el.querySelector("#presetRow"));
 
     var grid = el.querySelector("#brushTypeGrid");
     BRUSH_TYPES.forEach(function (b) {

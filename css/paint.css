@@ -121,6 +121,41 @@ body {
   background: var(--color-gold-soft);
 }
 
+/* 브러시 프리셋(저장해둔 굵기/농도/보정 묶음) - 칩 + 작은 삭제 버튼 한 쌍씩 줄바꿈 */
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.preset-chip {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.preset-chip .brush-chip {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  padding: 6px 8px;
+}
+
+.preset-chip .icon-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-left: none;
+}
+
+/* 칩끼리 다닥다닥 붙어있어 ::before의 확장된 히트 영역(터치 대응)이 옆 칩을
+   가리면 안 되므로 이 안에서는 끈다 - 실제 보이는 22px 박스만 클릭된다. */
+.preset-chip .icon-btn::before {
+  display: none;
+}
+
 /* 색상 -------------------------------------------------------------*/
 .color-current {
   width: 100%;
