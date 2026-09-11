@@ -67,8 +67,11 @@
       });
       document.getElementById("deleteBtn").addEventListener("click", function () {
         if (confirm('"' + (post.title || "이 그림") + '"을(를) 삭제할까요? 되돌릴 수 없어요.')) {
-          ArtStore.deletePost(post.id);
-          location.href = "art.html";
+          var btn = this;
+          btn.disabled = true;
+          ArtStore.deletePost(post.id).then(function () {
+            location.href = "art.html";
+          });
         }
       });
       document.getElementById("editCaptionBtn").addEventListener("click", function () {

@@ -179,8 +179,7 @@
       renderFriendsSection(isAdmin) +
       (isAdmin
         ? '<div class="admin-settings">' +
-          '<button class="btn btn-ghost btn-sm" id="siteNameBtn">✏️ 낙서장 이름 바꾸기</button> ' +
-          '<button class="btn btn-ghost btn-sm" id="legacyImportBtn">📦 기존 낙서장 내용 가져오기</button>' +
+          '<button class="btn btn-ghost btn-sm" id="siteNameBtn">✏️ 낙서장 이름 바꾸기</button>' +
           "</div>"
         : "");
 
@@ -218,9 +217,6 @@
         var next = window.prompt("낙서장 제목에 쓸 이름을 입력하세요", ProfileStore.getSiteName());
         if (next === null) return;
         ProfileStore.saveSiteName(next);
-      });
-      document.getElementById("legacyImportBtn").addEventListener("click", function () {
-        LegacyImport.run();
       });
     }
 

@@ -62,14 +62,18 @@ var ArtStore = (function () {
     return merged;
   }
 
+  // 삭제 후 다른 화면(art.html)으로 곧장 이동하는 호출부가 있어서, 클라우드 삭제가
+  // 끝나기 전에 이동해버리면 그 화면의 bootstrap()이 "아직 안 지워진" 원격 문서를
+  // 다시 읽어와 로컬에 되살려놓는 경합이 생긴다. 그래서 클라우드 삭제가 끝날 때까지
+  // 기다릴 수 있도록 Promise를 돌려준다.
   function deletePost(id) {
-    if (!Session.isLoggedIn()) return;
+    if (!Session.isLoggedIn()) return Promise.resolve();
     var all = loadAll();
     delete all[id];
     saveAll(all);
-    Cloud.deleteDoc(Session.path(COLLECTION + "/" + id));
-    if (typeof PanelArtStore !== "undefined") PanelArtStore.deletePanel(id, "main");
     if (window.__webtoonOnArtChanged) window.__webtoonOnArtChanged();
+    if (typeof PanelArtStore !== "undefined") PanelArtStore.deletePanel(id, "main");
+    return Cloud.deleteDoc(Session.path(COLLECTION + "/" + id));
   }
 
   function listPosts() {

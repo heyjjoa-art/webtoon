@@ -5,11 +5,6 @@
 // 한 번 만들어지면(create) 그 문서의 uid 자신 말고는 고칠 수 없다(그래서 같은
 // 이름으로 두 번 가입하는 게 DB 레벨에서 막힌다).
 //
-// legacy 아래는 계정 시스템이 생기기 전에 쓰던 전역 데이터다. 로그인한 사람 누구나
-// 읽을 수만 있게 열어둬서 js/legacy-import.js로 각자 자기 계정에 복사해갈 수
-// 있게 하고, 새로 쓰는 건 막는다 - 옮기기가 끝나면 이 블록과 데이터를 통째로
-// 지운다.
-//
 // Firebase 콘솔 > Firestore Database > 규칙 탭에 이 내용을 그대로 붙여넣는다.
 // 반드시 코드 배포(session.js 등) 이후에 교체할 것 - 먼저 넣으면 그 사이 사이트가
 // 멈춘다.
@@ -29,14 +24,5 @@ service cloud.firestore {
                              && request.resource.size() < 950000;
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
-
-    match /seriesList/{doc=**} { allow read: if request.auth != null; allow write: if false; }
-    match /episodes/{doc=**} { allow read: if request.auth != null; allow write: if false; }
-    match /artPosts/{doc=**} { allow read: if request.auth != null; allow write: if false; }
-    match /boardPosts/{doc=**} { allow read: if request.auth != null; allow write: if false; }
-    match /panelArt/{doc=**} { allow read: if request.auth != null; allow write: if false; }
-    match /about/{doc=**} { allow read: if request.auth != null; allow write: if false; }
-    match /artMeta/{doc=**} { allow read: if request.auth != null; allow write: if false; }
-    match /boardMeta/{doc=**} { allow read: if request.auth != null; allow write: if false; }
   }
 }
