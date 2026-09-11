@@ -146,6 +146,25 @@
     });
   }
 
+  var LONG_PRESS_MS = 450;
+
+  // 꾹 누르고 있으면(짧게 탭하는 것과 구분) onLongPress를 한 번만 부른다.
+  // 커서가 버튼 밖으로 나가거나 손을 떼면 취소된다.
+  function wireLongPress(el, onLongPress) {
+    var timer = null;
+    function start() {
+      clearTimeout(timer);
+      timer = setTimeout(onLongPress, LONG_PRESS_MS);
+    }
+    function cancel() {
+      clearTimeout(timer);
+    }
+    el.addEventListener("pointerdown", start);
+    el.addEventListener("pointerup", cancel);
+    el.addEventListener("pointerleave", cancel);
+    el.addEventListener("pointercancel", cancel);
+  }
+
   function buildToolRail() {
     var rail = document.getElementById("toolRail");
     rail.innerHTML = "";
@@ -159,6 +178,12 @@
       btn.addEventListener("click", function () {
         setTool(t.key);
       });
+      if (t.key === "brush") {
+        wireLongPress(btn, function () {
+          setTool(t.key);
+          setInspectorOpen(true);
+        });
+      }
       rail.appendChild(btn);
     });
   }
@@ -577,22 +602,26 @@
   // 드로어가 된다(css/tool-ui.css의 .inspector.is-drawer). 예전에는 이 "open"
   // 클래스를 붙였다 떼는 주체가 아무 데도 없어서 좁은 화면에서는 패널 자체에
   // 손을 댈 방법이 없었다 - 그 빠진 스위치가 이 함수다.
+  // 브러시를 꾹 눌렀을 때(buildToolRail) 좁은 화면의 드로어를 곧장 열어주는
+  // 용도로도 같이 쓰여서, 열고 닫는 로직을 이 함수 하나로 모아둔다.
+  function setInspectorOpen(open) {
+    var panel = document.getElementById("inspectorPanel");
+    var scrim = document.getElementById("inspectorScrim");
+    panel.classList.toggle("open", open);
+    scrim.classList.toggle("open", open);
+  }
+
   function wireInspectorDrawer() {
     var toggleBtn = document.getElementById("inspectorToggleBtn");
     var panel = document.getElementById("inspectorPanel");
     var scrim = document.getElementById("inspectorScrim");
     toggleBtn.innerHTML = Icons.svg("adjust", 18);
 
-    function setOpen(open) {
-      panel.classList.toggle("open", open);
-      scrim.classList.toggle("open", open);
-    }
-
     toggleBtn.addEventListener("click", function () {
-      setOpen(!panel.classList.contains("open"));
+      setInspectorOpen(!panel.classList.contains("open"));
     });
     scrim.addEventListener("click", function () {
-      setOpen(false);
+      setInspectorOpen(false);
     });
   }
 
