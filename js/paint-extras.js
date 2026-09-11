@@ -304,6 +304,47 @@
     if (Paint.onLayersChanged) Paint.onLayersChanged();
   }
 
+  // ── 빗금 ────────────────────────────────────────────────────────
+  // 스크린톤과 같은 요령(작은 타일을 패턴으로 반복해서 선택 영역/전체에
+  // 채운다)이지만, 타일 안에 점 대신 세로선 하나만 그려둔다 - 그 타일
+  // 자체를 회전시키면 세로선이 원하는 각도의 평행선 다발이 된다.
+  function applyHatching(spacing, angleDeg, lineWidth) {
+    var layer = Paint.getActiveLayer();
+    if (!layer || layer.locked) return;
+    var sel = Paint.selectionRect;
+    var region = sel || { x: 0, y: 0, w: Paint.nativeW, h: Paint.nativeH };
+
+    var tile = document.createElement("canvas");
+    tile.width = Math.max(2, spacing);
+    tile.height = Math.max(2, spacing);
+    var tctx = tile.getContext("2d");
+    tctx.strokeStyle = Paint.color;
+    tctx.lineWidth = lineWidth;
+    tctx.beginPath();
+    tctx.moveTo(tile.width / 2, -1);
+    tctx.lineTo(tile.width / 2, tile.height + 1);
+    tctx.stroke();
+
+    Paint.strokeStart(layer.id);
+    var ctx = layer.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(region.x, region.y, region.w, region.h);
+    ctx.clip();
+    ctx.translate(region.x + region.w / 2, region.y + region.h / 2);
+    ctx.rotate((angleDeg * Math.PI) / 180);
+    var pattern = ctx.createPattern(tile, "repeat");
+    ctx.fillStyle = pattern;
+    var diag = Math.hypot(region.w, region.h);
+    ctx.fillRect(-diag, -diag, diag * 2, diag * 2);
+    ctx.restore();
+    Paint.extendDirty(region.x, region.y, 0);
+    Paint.extendDirty(region.x + region.w, region.y + region.h, 0);
+    Paint.strokeEnd();
+    Paint.composite();
+    if (Paint.onLayersChanged) Paint.onLayersChanged();
+  }
+
   // ── 대칭자 설정 ──────────────────────────────────────────────────
   function setSymmetry(mode, segments) {
     Paint.symmetry = { mode: mode, segments: segments || 6 };
@@ -326,5 +367,6 @@
   Paint.focusLinesMove = focusLinesMove;
   Paint.focusLinesUp = focusLinesUp;
   Paint.applyScreentone = applyScreentone;
+  Paint.applyHatching = applyHatching;
   Paint.setSymmetry = setSymmetry;
 })();

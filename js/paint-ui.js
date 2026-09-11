@@ -325,7 +325,12 @@
       "<h4>스크린톤</h4>" +
       '<div class="field-row"><span>간격</span><input type="range" id="toneSpacing" min="4" max="30" value="10"><span id="toneSpacingVal">10</span></div>' +
       '<div class="field-row"><span>각도</span><input type="range" id="toneAngle" min="0" max="90" value="45"><span id="toneAngleVal">45</span></div>' +
-      '<button class="btn btn-ghost btn-sm" id="toneApplyBtn" style="width:100%;">선택 영역에 스크린톤 적용</button>';
+      '<button class="btn btn-ghost btn-sm" id="toneApplyBtn" style="width:100%;">선택 영역에 스크린톤 적용</button>' +
+      "<h4>빗금</h4>" +
+      '<div class="field-row"><span>간격</span><input type="range" id="hatchSpacing" min="4" max="40" value="10"><span id="hatchSpacingVal">10</span></div>' +
+      '<div class="field-row"><span>굵기</span><input type="range" id="hatchWidth" min="1" max="8" value="1"><span id="hatchWidthVal">1</span></div>' +
+      '<div class="field-row"><span>각도</span><input type="range" id="hatchAngle" min="0" max="180" value="45"><span id="hatchAngleVal">45</span></div>' +
+      '<button class="btn btn-ghost btn-sm" id="hatchApplyBtn" style="width:100%;">선택 영역에 빗금 적용</button>';
 
     buildPresetRow(el.querySelector("#presetRow"));
 
@@ -361,6 +366,9 @@
     });
     bindRange(el, "toneSpacing", "toneSpacingVal", function () {});
     bindRange(el, "toneAngle", "toneAngleVal", function () {});
+    bindRange(el, "hatchSpacing", "hatchSpacingVal", function () {});
+    bindRange(el, "hatchWidth", "hatchWidthVal", function () {});
+    bindRange(el, "hatchAngle", "hatchAngleVal", function () {});
 
     var symSelect = el.querySelector("#symmetrySelect");
     symSelect.value = Paint.symmetry.mode;
@@ -377,6 +385,13 @@
       var spacing = Number(el.querySelector("#toneSpacing").value);
       var angle = Number(el.querySelector("#toneAngle").value);
       Paint.applyScreentone(spacing, angle, Math.max(2, spacing * 0.45));
+    });
+
+    el.querySelector("#hatchApplyBtn").addEventListener("click", function () {
+      var spacing = Number(el.querySelector("#hatchSpacing").value);
+      var width = Number(el.querySelector("#hatchWidth").value);
+      var angle = Number(el.querySelector("#hatchAngle").value);
+      Paint.applyHatching(spacing, angle, width);
     });
   }
 
