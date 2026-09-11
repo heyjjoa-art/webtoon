@@ -53,19 +53,13 @@
   var TOOLS = [
     { key: "brush", icon: "brush", label: "브러시" },
     { key: "eraser", icon: "eraser", label: "지우개" },
-    { key: "fill", icon: "fill", label: "채우기" },
+    { key: "fill", icon: "fill", label: "채우기(단색/스크린톤/빗금)" },
     { key: "eyedropper", icon: "eyedropper", label: "스포이드" },
     { key: "select", icon: "select", label: "선택" },
     { key: "transform", icon: "transform", label: "변형" },
     { key: "shape", icon: "rect", label: "도형(직선/사각형/원)" },
-    { key: "focus", icon: "focus", label: "집중선" },
-    { key: "pattern", icon: "tone", label: "패턴(스크린톤/빗금)", sep: true }
+    { key: "effect", icon: "focus", label: "효과(집중선/플래시)", sep: true }
   ];
-
-  // 캔버스를 직접 드래그하는 도구가 아니라 "설정하고 적용 버튼을 누르는"
-  // 도구들 - 눌러도 캔버스에서 할 일이 없으니 길게 누를 필요 없이 클릭 한
-  // 번으로 바로 옵션 패널을 연다.
-  var PANEL_ONLY_TOOLS = { pattern: true };
 
   // 도구 하나하나가 아니라 "옵션 패널이 어느 것을 보여줄지"의 그룹 - 지우개는
   // 브러시와 같은 굵기/농도 설정을 쓰고, 스포이드는 자기 설정이 없는 대신
@@ -78,8 +72,7 @@
     select: "select",
     transform: "transform",
     shape: "shape",
-    focus: "focus",
-    pattern: "pattern"
+    effect: "effect"
   };
 
   var BRUSH_TYPES = [
@@ -224,8 +217,7 @@
       btn.setAttribute("aria-label", t.label);
       btn.innerHTML = Icons.svg(t.icon);
       btn.addEventListener("click", function () {
-        if (PANEL_ONLY_TOOLS[t.key]) openToolOptions(t.key);
-        else setTool(t.key);
+        setTool(t.key);
       });
       wireLongPress(btn, function () {
         openToolOptions(t.key);
@@ -328,7 +320,8 @@
   }
 
   // ── 브러시 섹션 ─────────────────────────────────────────────────
-  var patternKind = "dot"; // 패턴 패널의 "스크린톤(점)"/"빗금(선)" 선택 상태
+  var fillMode = "solid"; // 채우기 패널의 "단색"/"스크린톤(dot)"/"빗금(line)" 선택 상태
+  var effectKind = "focus"; // 효과 패널의 "집중선"/"플래시" 선택 상태
 
   function buildBrushSection() {
     var el = document.getElementById("brushSection");
@@ -360,9 +353,15 @@
       "</select>" +
       '<div class="field-row" id="symSegRow" hidden><span>분할</span><input type="range" id="symSegments" min="2" max="16" value="6"><span id="symSegVal">6</span></div>' +
       "</div>" +
-      // ── 채우기 ────────────────────────────────────────────────────
+      // ── 채우기(단색/스크린톤/빗금 통합) ─────────────────────────────
       '<div class="tool-panel" data-tool="fill">' +
-      "<h4>채우기 옵션</h4>" +
+      "<h4>채우기</h4>" +
+      '<div class="segmented" id="fillModeSeg">' +
+      '<button class="segmented-btn" data-v="solid">단색</button>' +
+      '<button class="segmented-btn" data-v="dot">스크린톤</button>' +
+      '<button class="segmented-btn" data-v="line">빗금</button>' +
+      "</div>" +
+      '<div id="fillSolidFields">' +
       '<div class="field-row"><span>허용치</span><input type="range" id="fillTolerance" min="0" max="120" value="' +
       fillTolerance +
       '"><span id="fillToleranceVal">' +
@@ -373,6 +372,15 @@
       '"><span id="fillExpandVal">' +
       fillExpand +
       "</span></div>" +
+      '<p class="tool-panel-hint">캔버스를 눌러 그 자리와 이어진 색을 채웁니다.</p>' +
+      "</div>" +
+      '<div id="fillPatternFields" hidden>' +
+      '<div class="field-row"><span>간격</span><input type="range" id="patternSpacing" min="4" max="40" value="10"><span id="patternSpacingVal">10</span></div>' +
+      '<div class="field-row"><span id="patternSizeLabel">크기</span><input type="range" id="patternSize" min="1" max="20" value="4"><span id="patternSizeVal">4</span></div>' +
+      '<div class="field-row"><span>각도</span><input type="range" id="patternAngle" min="0" max="180" value="45"><span id="patternAngleVal">45</span></div>' +
+      '<canvas class="tool-preview" id="patternPreviewCanvas" width="240" height="70"></canvas>' +
+      '<button class="btn btn-ghost btn-sm" id="patternApplyBtn" style="width:100%;">선택 영역에 적용</button>' +
+      "</div>" +
       "</div>" +
       // ── 도형 ──────────────────────────────────────────────────────
       '<div class="tool-panel" data-tool="shape">' +
@@ -382,34 +390,42 @@
       '<button class="segmented-btn" data-v="rect">사각형</button>' +
       '<button class="segmented-btn" data-v="circle">원</button>' +
       "</div>" +
+      '<div class="field-row"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="shapeFilled"' +
+      (Paint.shapeFilled ? " checked" : "") +
+      "> 안쪽 채우기</label></div>" +
+      '<div class="field-row" id="shapeRadiusRow"><span>모서리 둥글기</span><input type="range" id="shapeRadius" min="0" max="80" value="' +
+      (Paint.shapeRadius || 0) +
+      '"><span id="shapeRadiusVal">' +
+      (Paint.shapeRadius || 0) +
+      "</span></div>" +
       '<p class="tool-panel-hint">굵기·색상은 브러시 패널의 값을 그대로 씁니다.</p>' +
       "</div>" +
-      // ── 집중선 ────────────────────────────────────────────────────
-      '<div class="tool-panel" data-tool="focus">' +
-      "<h4>집중선</h4>" +
-      '<div class="field-row"><span>밀도</span><input type="range" id="focusDensity" min="12" max="120" value="' +
+      // ── 효과(집중선/플래시 통합) ────────────────────────────────────
+      '<div class="tool-panel" data-tool="effect">' +
+      "<h4>효과</h4>" +
+      '<div class="segmented" id="effectKindSeg">' +
+      '<button class="segmented-btn" data-v="focus">집중선</button>' +
+      '<button class="segmented-btn" data-v="flash">플래시</button>' +
+      "</div>" +
+      '<div class="field-row" id="focusDensityRow"><span>밀도</span><input type="range" id="focusDensity" min="12" max="120" value="' +
       (Paint.focusLinesDensity || 60) +
       '"><span id="focusDensityVal">' +
       (Paint.focusLinesDensity || 60) +
       "</span></div>" +
-      "</div>" +
-      // ── 패턴(스크린톤+빗금 통합) ────────────────────────────────────
-      '<div class="tool-panel" data-tool="pattern">' +
-      "<h4>패턴</h4>" +
-      '<div class="segmented" id="patternKindSeg">' +
-      '<button class="segmented-btn" data-v="dot">스크린톤(점)</button>' +
-      '<button class="segmented-btn" data-v="line">빗금(선)</button>' +
-      "</div>" +
-      '<div class="field-row"><span>간격</span><input type="range" id="patternSpacing" min="4" max="40" value="10"><span id="patternSpacingVal">10</span></div>' +
-      '<div class="field-row"><span id="patternSizeLabel">크기</span><input type="range" id="patternSize" min="1" max="20" value="4"><span id="patternSizeVal">4</span></div>' +
-      '<div class="field-row"><span>각도</span><input type="range" id="patternAngle" min="0" max="180" value="45"><span id="patternAngleVal">45</span></div>' +
-      '<canvas class="tool-preview" id="patternPreviewCanvas" width="240" height="70"></canvas>' +
-      '<button class="btn btn-ghost btn-sm" id="patternApplyBtn" style="width:100%;">선택 영역에 적용</button>' +
+      '<div class="field-row" id="flashIntensityRow" hidden><span>밝기</span><input type="range" id="flashIntensity" min="10" max="100" value="' +
+      Math.round((Paint.flashIntensity != null ? Paint.flashIntensity : 0.8) * 100) +
+      '"><span id="flashIntensityVal">' +
+      Math.round((Paint.flashIntensity != null ? Paint.flashIntensity : 0.8) * 100) +
+      "</span></div>" +
+      '<p class="tool-panel-hint">캔버스를 눌러 중심을 잡고 드래그해 크기를 정한 뒤 손을 뗍니다.</p>' +
       "</div>" +
       // ── 선택 ──────────────────────────────────────────────────────
       '<div class="tool-panel" data-tool="select">' +
       "<h4>선택</h4>" +
-      '<p class="tool-panel-hint">캔버스를 드래그해 영역을 고르고, 손잡이를 끌어 크기를 바꿀 수 있습니다. 채우기·집중선·패턴은 선택된 영역 안에만 적용됩니다.</p>' +
+      '<p class="tool-panel-hint">캔버스를 드래그해 영역을 고르고, 손잡이를 끌어 크기를 바꿀 수 있습니다. 채우기·효과·패턴은 선택된 영역 안에만 적용됩니다.</p>' +
+      '<div class="field-row"><button class="btn btn-ghost btn-sm" id="selDupBtn" style="flex:1;">복사(레이어로)</button><button class="btn btn-danger btn-sm" id="selEraseBtn" style="flex:1;">지우기</button></div>' +
+      '<div class="field-row"><button class="btn btn-ghost btn-sm" id="selFlipHBtn" style="flex:1;">좌우 반전</button><button class="btn btn-ghost btn-sm" id="selFlipVBtn" style="flex:1;">상하 반전</button></div>' +
+      '<button class="btn btn-ghost btn-sm" id="selTransformBtn" style="width:100%;margin-bottom:8px;">변형(크기·회전)으로 보내기</button>' +
       '<button class="btn btn-ghost btn-sm" id="selClearBtn" style="width:100%;">선택 해제</button>' +
       "</div>" +
       // ── 변형 ──────────────────────────────────────────────────────
@@ -443,7 +459,7 @@
       var spacing = Number(el.querySelector("#patternSpacing").value);
       var size = Number(el.querySelector("#patternSize").value);
       var angle = Number(el.querySelector("#patternAngle").value);
-      if (patternKind === "dot" && Paint.previewScreentone) {
+      if (fillMode === "dot" && Paint.previewScreentone) {
         Paint.previewScreentone(c.getContext("2d"), c.width, c.height, spacing, angle, size);
       } else if (Paint.previewHatching) {
         Paint.previewHatching(c.getContext("2d"), c.width, c.height, spacing, angle, size);
@@ -470,36 +486,51 @@
     bindRange(el, "focusDensity", "focusDensityVal", function (v) {
       Paint.focusLinesDensity = v;
     });
+    bindRange(el, "flashIntensity", "flashIntensityVal", function (v) {
+      Paint.flashIntensity = v / 100;
+    });
     bindRange(el, "patternSpacing", "patternSpacingVal", redrawPatternPreview);
     bindRange(el, "patternSize", "patternSizeVal", redrawPatternPreview);
     bindRange(el, "patternAngle", "patternAngleVal", redrawPatternPreview);
+    bindRange(el, "shapeRadius", "shapeRadiusVal", function (v) {
+      Paint.shapeRadius = v;
+    });
 
     redrawBrushPreview();
     redrawPatternPreview();
 
-    function setPatternKind(kind) {
-      patternKind = kind;
-      Array.prototype.forEach.call(el.querySelectorAll("#patternKindSeg .segmented-btn"), function (b) {
-        b.classList.toggle("active", b.dataset.v === kind);
+    // ── 채우기: 단색/스크린톤/빗금 모드 전환 ───────────────────────
+    function setFillMode(mode) {
+      fillMode = mode;
+      Array.prototype.forEach.call(el.querySelectorAll("#fillModeSeg .segmented-btn"), function (b) {
+        b.classList.toggle("active", b.dataset.v === mode);
       });
-      el.querySelector("#patternSizeLabel").textContent = kind === "dot" ? "점 크기" : "굵기";
-      redrawPatternPreview();
+      el.querySelector("#fillSolidFields").hidden = mode !== "solid";
+      el.querySelector("#fillPatternFields").hidden = mode === "solid";
+      if (mode !== "solid") {
+        el.querySelector("#patternSizeLabel").textContent = mode === "dot" ? "점 크기" : "굵기";
+        redrawPatternPreview();
+      }
     }
-    Array.prototype.forEach.call(el.querySelectorAll("#patternKindSeg .segmented-btn"), function (btn) {
+    Array.prototype.forEach.call(el.querySelectorAll("#fillModeSeg .segmented-btn"), function (btn) {
       btn.addEventListener("click", function () {
-        setPatternKind(btn.dataset.v);
+        setFillMode(btn.dataset.v);
       });
     });
-    setPatternKind(patternKind);
+    setFillMode(fillMode);
 
     el.querySelector("#patternApplyBtn").addEventListener("click", function () {
       var spacing = Number(el.querySelector("#patternSpacing").value);
       var size = Number(el.querySelector("#patternSize").value);
       var angle = Number(el.querySelector("#patternAngle").value);
-      if (patternKind === "dot") Paint.applyScreentone(spacing, angle, size);
-      else Paint.applyHatching(spacing, angle, size);
+      if (fillMode === "dot") Paint.applyScreentone(spacing, angle, size);
+      else if (fillMode === "line") Paint.applyHatching(spacing, angle, size);
     });
 
+    // ── 도형: 종류 + 채우기 여부 + 둥글기 ───────────────────────────
+    function syncShapeRadiusRow() {
+      el.querySelector("#shapeRadiusRow").hidden = Paint.shapeKind !== "rect";
+    }
     Array.prototype.forEach.call(el.querySelectorAll("#shapeKindSeg .segmented-btn"), function (btn) {
       btn.classList.toggle("active", btn.dataset.v === Paint.shapeKind);
       btn.addEventListener("click", function () {
@@ -507,8 +538,29 @@
         Array.prototype.forEach.call(el.querySelectorAll("#shapeKindSeg .segmented-btn"), function (b) {
           b.classList.toggle("active", b === btn);
         });
+        syncShapeRadiusRow();
       });
     });
+    syncShapeRadiusRow();
+    el.querySelector("#shapeFilled").addEventListener("change", function (e) {
+      Paint.shapeFilled = e.target.checked;
+    });
+
+    // ── 효과: 집중선/플래시 모드 전환 ───────────────────────────────
+    function setEffectKind(kind) {
+      effectKind = kind;
+      Array.prototype.forEach.call(el.querySelectorAll("#effectKindSeg .segmented-btn"), function (b) {
+        b.classList.toggle("active", b.dataset.v === kind);
+      });
+      el.querySelector("#focusDensityRow").hidden = kind !== "focus";
+      el.querySelector("#flashIntensityRow").hidden = kind !== "flash";
+    }
+    Array.prototype.forEach.call(el.querySelectorAll("#effectKindSeg .segmented-btn"), function (btn) {
+      btn.addEventListener("click", function () {
+        setEffectKind(btn.dataset.v);
+      });
+    });
+    setEffectKind(effectKind);
 
     var symSelect = el.querySelector("#symmetrySelect");
     symSelect.value = Paint.symmetry.mode;
@@ -521,8 +573,24 @@
       Paint.setSymmetry(symSelect.value, v);
     });
 
+    // ── 선택: 지우기/복사/반전/변형 보내기/해제 ─────────────────────
     el.querySelector("#selClearBtn").addEventListener("click", function () {
       Paint.clearSelection();
+    });
+    el.querySelector("#selEraseBtn").addEventListener("click", function () {
+      Paint.selectionEraseContent();
+    });
+    el.querySelector("#selDupBtn").addEventListener("click", function () {
+      Paint.selectionDuplicate();
+    });
+    el.querySelector("#selFlipHBtn").addEventListener("click", function () {
+      Paint.selectionFlip("h");
+    });
+    el.querySelector("#selFlipVBtn").addEventListener("click", function () {
+      Paint.selectionFlip("v");
+    });
+    el.querySelector("#selTransformBtn").addEventListener("click", function () {
+      openToolOptions("transform");
     });
 
     el.querySelector("#xformCommitBtn").addEventListener("click", function () {
@@ -603,6 +671,11 @@
     "color-dodge": "색상닷지"
   };
 
+  // 옵션이 펼쳐지는 레이어는 항상 하나뿐이다(PC든 모바일이든 동일) - 그리기
+  // 대상(Paint.activeLayerId)과는 별개로 둬서, 지금 그리고 있는 레이어를
+  // 바꾸지 않고도 다른 레이어의 이름/불투명도/블렌드를 살짝 들여다볼 수 있다.
+  var expandedLayerId = null;
+
   function buildLayerSection() {
     var el = document.getElementById("layerSection");
     var layers = Paint.sortedLayers().slice().reverse(); // 위 레이어를 목록 위쪽에
@@ -627,11 +700,75 @@
       Paint.removeLayer(Paint.activeLayerId);
     });
 
+    // 드래그로 순서를 바꾼 뒤(놓았을 때) 최종 DOM 순서를 그대로 order 값에
+    // 반영한다 - 맨 위(화면 첫 줄)가 가장 큰 order(스택 맨 위)가 되도록.
+    function commitLayerOrderFromDom() {
+      var rows = Array.prototype.slice.call(document.querySelectorAll("#layerRows .layer-row"));
+      var total = rows.length;
+      rows.forEach(function (row, domIdx) {
+        var l = Paint.getLayer(row.dataset.layerId);
+        if (l) l.order = total - domIdx;
+      });
+      Paint.composite();
+      if (Paint.onLayersChanged) Paint.onLayersChanged();
+    }
+
+    function wireLayerDrag(handle, row) {
+      handle.addEventListener("pointerdown", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var rowsContainer = document.getElementById("layerRows");
+        row.classList.add("dragging");
+        try {
+          handle.setPointerCapture(e.pointerId);
+        } catch (err) {
+          /* 캡처 실패는 무시 - 드래그 자체는 계속 진행된다 */
+        }
+
+        function onMove(ev) {
+          var y = ev.clientY;
+          var siblings = Array.prototype.slice.call(rowsContainer.querySelectorAll(".layer-row"));
+          var target = null;
+          for (var i = 0; i < siblings.length; i++) {
+            var r = siblings[i];
+            if (r === row) continue;
+            var rect = r.getBoundingClientRect();
+            if (y < rect.top + rect.height / 2) {
+              target = r;
+              break;
+            }
+          }
+          if (target) {
+            if (row.nextSibling !== target) rowsContainer.insertBefore(row, target);
+          } else if (rowsContainer.lastElementChild !== row) {
+            rowsContainer.appendChild(row);
+          }
+        }
+        function onUp(ev) {
+          try {
+            handle.releasePointerCapture(ev.pointerId);
+          } catch (err) {
+            /* 무시 */
+          }
+          document.removeEventListener("pointermove", onMove);
+          document.removeEventListener("pointerup", onUp);
+          row.classList.remove("dragging");
+          commitLayerOrderFromDom();
+        }
+        document.addEventListener("pointermove", onMove);
+        document.addEventListener("pointerup", onUp);
+      });
+    }
+
     var rowsEl = el.querySelector("#layerRows");
     layers.forEach(function (layer, idx) {
       var row = document.createElement("div");
       row.className = "layer-row" + (layer.id === Paint.activeLayerId ? " active" : "");
+      row.dataset.layerId = layer.id;
       row.innerHTML =
+        '<button class="icon-btn layer-drag-handle" data-act="drag" data-tooltip="끌어서 순서 바꾸기">' +
+        Icons.svg("menu", 14) +
+        "</button>" +
         '<div class="layer-thumb"><img src="' +
         Paint.layerThumbDataUrl(layer.id, 40) +
         '"></div>' +
@@ -661,8 +798,9 @@
           : "");
 
       row.addEventListener("click", function (e) {
-        if (e.target.dataset.act) return;
+        if (e.target.closest("[data-act]")) return;
         Paint.activeLayerId = layer.id;
+        expandedLayerId = expandedLayerId === layer.id ? null : layer.id;
         buildLayerSection();
       });
       row.querySelector('[data-act="vis"]').addEventListener("click", function (e) {
@@ -687,11 +825,12 @@
         e.stopPropagation();
         Paint.moveLayer(layer.id, "down");
       });
+      wireLayerDrag(row.querySelector('[data-act="drag"]'), row);
       rowsEl.appendChild(row);
 
-      if (layer.id === Paint.activeLayerId) {
+      if (layer.id === expandedLayerId) {
         var extra = document.createElement("div");
-        extra.style.padding = "0 4px 8px";
+        extra.className = "layer-details";
         extra.innerHTML =
           '<div class="field-row"><span>이름</span><input type="text" id="layerNameInput" value="' +
           escapeHtml(layer.name) +
@@ -894,12 +1033,15 @@
 
     function dispatchDown(tool, pt, e) {
       if (tool === "brush" || tool === "eraser") Paint.brushDown(pt.x, pt.y, e.pressure);
-      else if (tool === "fill") Paint.floodFillAt(pt.x, pt.y, fillTolerance, fillExpand);
-      else if (tool === "eyedropper") Paint.eyedropAt(pt.x, pt.y);
+      else if (tool === "fill") {
+        if (fillMode === "solid") Paint.floodFillAt(pt.x, pt.y, fillTolerance, fillExpand);
+      } else if (tool === "eyedropper") Paint.eyedropAt(pt.x, pt.y);
       else if (tool === "select") Paint.selectDown(pt.x, pt.y);
       else if (tool === "shape") Paint.shapeDown(pt.x, pt.y);
-      else if (tool === "focus") Paint.focusLinesDown(pt.x, pt.y);
-      else if (tool === "transform" && Paint.isTransforming()) transformDragStart = pt;
+      else if (tool === "effect") {
+        if (effectKind === "flash") Paint.flashDown(pt.x, pt.y);
+        else Paint.focusLinesDown(pt.x, pt.y);
+      } else if (tool === "transform" && Paint.isTransforming()) transformDragStart = pt;
     }
 
     var transformDragStart = null;
@@ -908,8 +1050,10 @@
       if (tool === "brush" || tool === "eraser") Paint.brushMove(pt.x, pt.y, currentPressure);
       else if (tool === "select") Paint.selectMove(pt.x, pt.y);
       else if (tool === "shape") Paint.shapeMove(pt.x, pt.y);
-      else if (tool === "focus") Paint.focusLinesMove(pt.x, pt.y);
-      else if (tool === "transform" && transformDragStart) {
+      else if (tool === "effect") {
+        if (effectKind === "flash") Paint.flashMove(pt.x, pt.y);
+        else Paint.focusLinesMove(pt.x, pt.y);
+      } else if (tool === "transform" && transformDragStart) {
         Paint.transformMoveBy(pt.x - transformDragStart.x, pt.y - transformDragStart.y);
         transformDragStart = pt;
       }
@@ -919,8 +1063,10 @@
       if (tool === "brush" || tool === "eraser") Paint.brushUp(pt.x, pt.y);
       else if (tool === "select") Paint.selectUp(pt.x, pt.y);
       else if (tool === "shape") Paint.shapeUp(pt.x, pt.y);
-      else if (tool === "focus") Paint.focusLinesUp(pt.x, pt.y);
-      else if (tool === "transform") transformDragStart = null;
+      else if (tool === "effect") {
+        if (effectKind === "flash") Paint.flashUp(pt.x, pt.y);
+        else Paint.focusLinesUp(pt.x, pt.y);
+      } else if (tool === "transform") transformDragStart = null;
     }
 
     var currentPressure = 0.5;

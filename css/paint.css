@@ -190,6 +190,20 @@ body {
   border-color: var(--color-accent);
 }
 
+.layer-row.dragging {
+  opacity: 0.5;
+}
+
+.layer-drag-handle {
+  cursor: grab;
+  touch-action: none;
+  color: var(--color-text-faint);
+}
+
+.layer-details {
+  padding: 0 4px 8px;
+}
+
 .layer-thumb {
   width: 32px;
   height: 32px;

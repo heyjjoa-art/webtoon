@@ -6,6 +6,37 @@
   // ── 직선자 / 도형 ───────────────────────────────────────────────
   var shapeStart = null;
   Paint.shapeKind = "line"; // 'line' | 'rect' | 'circle'
+  Paint.shapeFilled = false; // 사각형/원을 안까지 채울지(직선에는 의미 없음)
+  Paint.shapeRadius = 0; // 사각형 모서리 둥글기
+
+  // 미리보기와 실제 그리기가 완전히 같은 경로를 그리게 - 도형 종류별 경로
+  // 만들기와, 채우기 여부 적용을 한 곳에만 둔다.
+  function buildShapePath(ctx, x0, y0, x1, y1) {
+    ctx.beginPath();
+    if (Paint.shapeKind === "line") {
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+    } else if (Paint.shapeKind === "rect") {
+      var rx = Math.min(x0, x1),
+        ry = Math.min(y0, y1);
+      var rw = Math.abs(x1 - x0),
+        rh = Math.abs(y1 - y0);
+      var radius = Math.max(0, Math.min(Paint.shapeRadius || 0, rw / 2, rh / 2));
+      if (radius > 0 && ctx.roundRect) ctx.roundRect(rx, ry, rw, rh, radius);
+      else ctx.rect(rx, ry, rw, rh);
+    } else if (Paint.shapeKind === "circle") {
+      var r = Math.hypot(x1 - x0, y1 - y0);
+      ctx.arc(x0, y0, r, 0, Math.PI * 2);
+    }
+  }
+
+  function paintShapePath(ctx) {
+    if (Paint.shapeFilled && Paint.shapeKind !== "line") {
+      ctx.fillStyle = Paint.color;
+      ctx.fill();
+    }
+    ctx.stroke();
+  }
 
   function drawShapePreview(x1, y1) {
     var ctx = Paint.els.overlayCtx;
@@ -16,19 +47,8 @@
     ctx.lineWidth = Paint.brush.size;
     ctx.lineCap = "round";
     ctx.globalAlpha = Paint.brush.opacity;
-    ctx.beginPath();
-    if (Paint.shapeKind === "line") {
-      ctx.moveTo(shapeStart.x, shapeStart.y);
-      ctx.lineTo(x1, y1);
-    } else if (Paint.shapeKind === "rect") {
-      ctx.rect(Math.min(shapeStart.x, x1), Math.min(shapeStart.y, y1), Math.abs(x1 - shapeStart.x), Math.abs(y1 - shapeStart.y));
-    } else if (Paint.shapeKind === "circle") {
-      var cx = shapeStart.x,
-        cy = shapeStart.y;
-      var r = Math.hypot(x1 - cx, y1 - cy);
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    }
-    ctx.stroke();
+    buildShapePath(ctx, shapeStart.x, shapeStart.y, x1, y1);
+    paintShapePath(ctx);
     ctx.restore();
   }
 
@@ -51,29 +71,12 @@
       ctx.lineWidth = Paint.brush.size;
       ctx.lineCap = "round";
       ctx.globalAlpha = Paint.brush.opacity;
-      var pad = Paint.brush.size;
-      ctx.beginPath();
-      if (Paint.shapeKind === "line") {
-        ctx.moveTo(shapeStart.x, shapeStart.y);
-        ctx.lineTo(x, y);
-        Paint.extendDirty(shapeStart.x, shapeStart.y, pad);
-        Paint.extendDirty(x, y, pad);
-      } else if (Paint.shapeKind === "rect") {
-        var rx = Math.min(shapeStart.x, x),
-          ry = Math.min(shapeStart.y, y);
-        var rw = Math.abs(x - shapeStart.x),
-          rh = Math.abs(y - shapeStart.y);
-        ctx.rect(rx, ry, rw, rh);
-        Paint.extendDirty(rx, ry, pad);
-        Paint.extendDirty(rx + rw, ry + rh, pad);
-      } else if (Paint.shapeKind === "circle") {
-        var r = Math.hypot(x - shapeStart.x, y - shapeStart.y);
-        ctx.arc(shapeStart.x, shapeStart.y, r, 0, Math.PI * 2);
-        Paint.extendDirty(shapeStart.x - r, shapeStart.y - r, pad);
-        Paint.extendDirty(shapeStart.x + r, shapeStart.y + r, pad);
-      }
-      ctx.stroke();
+      var pad = Paint.brush.size + Math.hypot(x - shapeStart.x, y - shapeStart.y);
+      buildShapePath(ctx, shapeStart.x, shapeStart.y, x, y);
+      paintShapePath(ctx);
       ctx.restore();
+      Paint.extendDirty(shapeStart.x, shapeStart.y, pad);
+      Paint.extendDirty(x, y, pad);
       Paint.strokeEnd();
     }
     shapeStart = null;
@@ -220,6 +223,60 @@
     Paint.selectionRect = null;
     drawSelectionOverlay(null);
     if (Paint.onSelectionChanged) Paint.onSelectionChanged();
+  }
+
+  // 선택 영역 지우기(투명하게) - 크기/회전은 변형 도구가 이미 선택 영역을
+  // 그대로 대상으로 삼으므로(transformBegin) 따로 만들지 않고 그쪽으로 보낸다.
+  function selectionEraseContent() {
+    var layer = Paint.getActiveLayer();
+    var r = Paint.selectionRect;
+    if (!layer || layer.locked || !r) return;
+    Paint.strokeStart(layer.id);
+    layer.ctx.clearRect(r.x, r.y, r.w, r.h);
+    Paint.extendDirty(r.x, r.y, 0);
+    Paint.extendDirty(r.x + r.w, r.y + r.h, 0);
+    Paint.strokeEnd();
+    Paint.composite();
+    if (Paint.onLayersChanged) Paint.onLayersChanged();
+  }
+
+  // 선택 영역을 새 레이어로 복제 - 그 자리에 그대로, 위에 쌓인다.
+  function selectionDuplicate() {
+    var layer = Paint.getActiveLayer();
+    var r = Paint.selectionRect;
+    if (!layer || !r) return;
+    var newLayer = Paint.addLayer();
+    newLayer.ctx.drawImage(layer.canvas, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    Paint.composite();
+    if (Paint.onLayersChanged) Paint.onLayersChanged();
+  }
+
+  // 선택 영역 안의 내용만 좌우/상하로 뒤집는다(선택이 없으면 캔버스 전체).
+  function selectionFlip(axis) {
+    var layer = Paint.getActiveLayer();
+    var r = Paint.selectionRect || { x: 0, y: 0, w: Paint.nativeW, h: Paint.nativeH };
+    if (!layer || layer.locked || r.w <= 0 || r.h <= 0) return;
+    var tmp = document.createElement("canvas");
+    tmp.width = r.w;
+    tmp.height = r.h;
+    tmp.getContext("2d").drawImage(layer.canvas, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+    Paint.strokeStart(layer.id);
+    layer.ctx.clearRect(r.x, r.y, r.w, r.h);
+    layer.ctx.save();
+    if (axis === "h") {
+      layer.ctx.translate(r.x + r.w, r.y);
+      layer.ctx.scale(-1, 1);
+    } else {
+      layer.ctx.translate(r.x, r.y + r.h);
+      layer.ctx.scale(1, -1);
+    }
+    layer.ctx.drawImage(tmp, 0, 0);
+    layer.ctx.restore();
+    Paint.extendDirty(r.x, r.y, 0);
+    Paint.extendDirty(r.x + r.w, r.y + r.h, 0);
+    Paint.strokeEnd();
+    Paint.composite();
+    if (Paint.onLayersChanged) Paint.onLayersChanged();
   }
 
   // 다른 도구를 고르거나 화면을 확대·축소해도(줌 배지, 핀치) 선택 테두리가
@@ -382,6 +439,60 @@
     ctx.restore();
   }
 
+  // ── 플래시(방사형 빛 번짐) ─────────────────────────────────────
+  // 집중선과 같은 방식(중심을 누르고 드래그해 반지름 정하기)이지만, 선 다발
+  // 대신 중심이 밝고 가장자리로 갈수록 옅어지는 원형 그라디언트 하나를
+  // 찍는다 - 충격/섬광 효과에 쓴다.
+  var flashCenter = null;
+  Paint.flashIntensity = 0.8;
+
+  function hexToRgbLocal(hex) {
+    var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+    if (!m) return { r: 255, g: 255, b: 255 };
+    return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
+  }
+
+  function drawFlash(ctx, cx, cy, radius, intensity) {
+    if (radius <= 0) return;
+    var rgb = hexToRgbLocal(Paint.color);
+    var col = rgb.r + "," + rgb.g + "," + rgb.b;
+    var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    grad.addColorStop(0, "rgba(" + col + "," + intensity + ")");
+    grad.addColorStop(0.6, "rgba(" + col + "," + intensity * 0.4 + ")");
+    grad.addColorStop(1, "rgba(" + col + ",0)");
+    ctx.save();
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function flashDown(x, y) {
+    flashCenter = { x: x, y: y };
+  }
+  function flashMove(x, y) {
+    if (!flashCenter) return;
+    var ctx = Paint.els.overlayCtx;
+    ctx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
+    drawFlash(ctx, flashCenter.x, flashCenter.y, Math.hypot(x - flashCenter.x, y - flashCenter.y), Paint.flashIntensity);
+  }
+  function flashUp(x, y) {
+    if (!flashCenter) return;
+    var radius = Math.hypot(x - flashCenter.x, y - flashCenter.y);
+    var layer = Paint.getActiveLayer();
+    if (layer && !layer.locked && radius > 4) {
+      Paint.strokeStart(layer.id);
+      drawFlash(layer.ctx, flashCenter.x, flashCenter.y, radius, Paint.flashIntensity);
+      Paint.extendDirty(flashCenter.x, flashCenter.y, radius + 4);
+      Paint.strokeEnd();
+    }
+    flashCenter = null;
+    Paint.els.overlayCtx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
+    Paint.composite();
+    if (Paint.onLayersChanged) Paint.onLayersChanged();
+  }
+
   // ── 스크린톤 ────────────────────────────────────────────────────
   function applyScreentone(spacing, angleDeg, dotSize) {
     var layer = Paint.getActiveLayer();
@@ -516,6 +627,9 @@
   Paint.selectMove = selectMove;
   Paint.selectUp = selectUp;
   Paint.clearSelection = clearSelection;
+  Paint.selectionEraseContent = selectionEraseContent;
+  Paint.selectionDuplicate = selectionDuplicate;
+  Paint.selectionFlip = selectionFlip;
   Paint.refreshSelectionOverlay = refreshSelectionOverlay;
   Paint.transformBegin = transformBegin;
   Paint.transformMoveBy = transformMoveBy;
@@ -526,6 +640,9 @@
   Paint.focusLinesDown = focusLinesDown;
   Paint.focusLinesMove = focusLinesMove;
   Paint.focusLinesUp = focusLinesUp;
+  Paint.flashDown = flashDown;
+  Paint.flashMove = flashMove;
+  Paint.flashUp = flashUp;
   Paint.applyScreentone = applyScreentone;
   Paint.applyHatching = applyHatching;
   Paint.previewScreentone = previewScreentone;
