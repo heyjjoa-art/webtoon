@@ -1,0 +1,190 @@
+/* ── 웹툰 "무대" 공용 스타일 ──────────────────────────────────────
+   컷(.tn-panel)과 텍스트(.tn-text)를 편집기(edit.html)와 독자 화면(read.html)이
+   똑같은 마크업(js/toon-render.js가 만든다)과 똑같은 CSS로 그린다. 예전에는
+   editor.css/.ed-panel·.ed-text와 reader.css/.reader-panel·.reader-text가
+   손으로 따로 정의돼 있어서 값이 이미 어긋나 있었다(배경색·radius·padding 등) -
+   이 파일 하나로 합쳐서 "편집기에서 본 대로 독자에게 보인다"를 구조적으로
+   보장한다.
+
+   무대 컨테이너(#editorCanvas, #panelCanvas)는 종횡비(aspect-ratio)로 크기를
+   잡고, 그 안의 컷·텍스트는 전부 %로 배치한다 - 그러면 창 크기가 바뀌어도
+   자바스크립트가 다시 계산할 필요 없이 브라우저가 알아서 늘어나고 줄어든다.
+   radius/글자 크기만 화면 배율(--tn-scale, ResizeObserver가 컨테이너에 매겨준다)에
+   따라 픽셀로 다시 계산해야 해서 calc()로 뽑아낸다. */
+
+.tn-scene {
+  position: relative;
+  width: 100%;
+  --tn-scale: 1;
+}
+
+.tn-panel {
+  position: absolute;
+  overflow: hidden;
+  background: var(--color-surface-soft);
+  z-index: var(--z-scene);
+  border-radius: calc(var(--tn-radius, 0) * var(--tn-scale, 1) * 1px);
+}
+
+.tn-panel img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  display: block;
+}
+
+.tn-panel.fit-contain img {
+  object-fit: contain;
+}
+
+.tn-panel.has-border {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
+}
+
+.tn-panel .tn-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-faint);
+}
+
+.tn-text {
+  position: absolute;
+  padding: 8px 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  z-index: var(--z-scene);
+  font-size: max(9px, calc(var(--tn-size, 16) * var(--tn-scale, 1) * 1px));
+  /* 독자 화면에서는 말풍선이 탭을 가로채면 안 된다(밑에 있는 컷/링크로
+     그대로 통과해야 함) - 편집기에서만([data-editable]) 다시 클릭 가능하게. */
+  pointer-events: none;
+}
+
+.tn-text[data-editable] {
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.tn-text.style-bubble {
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 18px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+.tn-text.style-narration {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1a1a;
+  border-radius: 4px;
+}
+
+.tn-text.style-sfx {
+  background: transparent;
+  color: #fff;
+  font-weight: 900;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.7), 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* 편집기 전용: 선택 표시와 손잡이. 리더는 이 클래스들을 아예 쓰지 않는다. */
+.tn-panel.selected,
+.tn-text.selected {
+  outline: 2px solid var(--color-accent);
+}
+
+/* touch-action:none은 편집기에서 드래그·핸들 조작을 위해 필요하지만, 독자
+   화면에도 걸어버리면 손가락으로 컷 위를 스와이프해서 스크롤을 못 하게
+   막아버린다 - 그래서 [data-editable]에만 건다. */
+.tn-panel[data-editable],
+.tn-text[data-editable] {
+  touch-action: none;
+  cursor: grab;
+}
+
+.selection-overlay {
+  position: absolute;
+  z-index: var(--z-handle);
+  pointer-events: none;
+}
+
+.selection-overlay .tn-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--color-accent);
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* 시각적 크기(14px)는 유지하되 히트 영역만 44px까지 넓힌다 - 손가락이
+   원 밖을 눌러도 잡히게. */
+.selection-overlay .tn-handle::before {
+  content: "";
+  position: absolute;
+  inset: -15px;
+}
+
+.tn-handle.nw {
+  left: -7px;
+  top: -7px;
+  cursor: nwse-resize;
+}
+.tn-handle.n {
+  left: calc(50% - 7px);
+  top: -7px;
+  cursor: ns-resize;
+}
+.tn-handle.ne {
+  right: -7px;
+  top: -7px;
+  cursor: nesw-resize;
+}
+.tn-handle.e {
+  right: -7px;
+  top: calc(50% - 7px);
+  cursor: ew-resize;
+}
+.tn-handle.se {
+  right: -7px;
+  bottom: -7px;
+  cursor: nwse-resize;
+}
+.tn-handle.s {
+  left: calc(50% - 7px);
+  bottom: -7px;
+  cursor: ns-resize;
+}
+.tn-handle.sw {
+  left: -7px;
+  bottom: -7px;
+  cursor: nesw-resize;
+}
+.tn-handle.w {
+  left: -7px;
+  top: calc(50% - 7px);
+  cursor: ew-resize;
+}
+.tn-handle.tw-e {
+  right: -7px;
+  top: calc(50% - 7px);
+  cursor: ew-resize;
+}
+.tn-handle.tw-w {
+  left: -7px;
+  top: calc(50% - 7px);
+  cursor: ew-resize;
+}
+
+@media (pointer: coarse) {
+  .selection-overlay .tn-handle {
+    width: 18px;
+    height: 18px;
+  }
+}

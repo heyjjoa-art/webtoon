@@ -48,16 +48,16 @@
   }
 
   var TOOLS = [
-    { key: "brush", icon: "✏️", label: "브러시" },
-    { key: "eraser", icon: "🧽", label: "지우개" },
-    { key: "fill", icon: "🪣", label: "채우기" },
-    { key: "eyedropper", icon: "💧", label: "스포이드" },
-    { key: "select", icon: "▭", label: "선택" },
-    { key: "transform", icon: "✥", label: "변형" },
-    { key: "line", icon: "📏", label: "직선" },
-    { key: "rect", icon: "⬜", label: "사각형" },
-    { key: "circle", icon: "⭕", label: "원" },
-    { key: "focus", icon: "☀️", label: "집중선" }
+    { key: "brush", icon: "brush", label: "브러시" },
+    { key: "eraser", icon: "eraser", label: "지우개" },
+    { key: "fill", icon: "fill", label: "채우기" },
+    { key: "eyedropper", icon: "eyedropper", label: "스포이드" },
+    { key: "select", icon: "select", label: "선택" },
+    { key: "transform", icon: "transform", label: "변형" },
+    { key: "line", icon: "line", label: "직선" },
+    { key: "rect", icon: "rect", label: "사각형" },
+    { key: "circle", icon: "circle", label: "원" },
+    { key: "focus", icon: "focus", label: "집중선" }
   ];
 
   var BRUSH_TYPES = [
@@ -99,6 +99,7 @@
     buildBrushSection();
     buildColorSection();
     buildLayerSection();
+    buildZoomBar();
     wireTopbar();
     wirePointerDispatch();
     wireKeyboard();
@@ -149,13 +150,54 @@
       var btn = document.createElement("button");
       btn.className = "tool-btn" + (t.key === activeToolKey ? " active" : "");
       btn.dataset.key = t.key;
-      btn.title = t.label;
-      btn.textContent = t.icon;
+      btn.dataset.tooltip = t.label;
+      btn.setAttribute("aria-label", t.label);
+      btn.innerHTML = Icons.svg(t.icon);
       btn.addEventListener("click", function () {
         setTool(t.key);
       });
       rail.appendChild(btn);
     });
+  }
+
+  // ── 줌/회전 배지(캔버스 아래 가운데) ───────────────────────────
+  function buildZoomBar() {
+    var bar = document.getElementById("zoomBar");
+    bar.innerHTML =
+      '<button class="icon-btn" id="zoomOutBtn" data-tooltip="축소">' + Icons.svg("zoomOut", 16) + "</button>" +
+      '<span class="zoom-val" id="zoomVal"></span>' +
+      '<button class="icon-btn" id="zoomInBtn" data-tooltip="확대">' + Icons.svg("zoomIn", 16) + "</button>" +
+      '<button class="icon-btn" id="zoomFitBtn" data-tooltip="화면에 맞추기">' + Icons.svg("zoomFit", 16) + "</button>" +
+      '<button class="icon-btn" id="rotateResetBtn" data-tooltip="회전 초기화">' + Icons.svg("rotateReset", 16) + "</button>";
+    bar.querySelector("#zoomOutBtn").addEventListener("click", function () {
+      zoomBy(1 / 1.2);
+    });
+    bar.querySelector("#zoomInBtn").addEventListener("click", function () {
+      zoomBy(1.2);
+    });
+    bar.querySelector("#zoomFitBtn").addEventListener("click", function () {
+      Paint.fitView();
+      syncZoomVal();
+    });
+    bar.querySelector("#rotateResetBtn").addEventListener("click", function () {
+      Paint.view.rotation = 0;
+      Paint.updateStageTransform();
+      syncZoomVal();
+    });
+    syncZoomVal();
+  }
+
+  function zoomBy(factor) {
+    Paint.view.scale = Math.max(0.05, Math.min(8, Paint.view.scale * factor));
+    Paint.updateStageTransform();
+    syncZoomVal();
+  }
+
+  // 휠/핀치로 배율이 바뀌는 곳(wirePointerDispatch)에서도 그때그때 불러서
+  // 배지 숫자가 실제 확대율과 항상 같게 유지한다.
+  function syncZoomVal() {
+    var el = document.getElementById("zoomVal");
+    if (el) el.textContent = Math.round(Paint.view.scale * 100) + "%";
   }
 
   // ── 브러시 섹션 ─────────────────────────────────────────────────
@@ -164,17 +206,17 @@
     el.innerHTML =
       "<h4>브러시</h4>" +
       '<div class="brush-grid" id="brushTypeGrid"></div>' +
-      '<div class="slider-row"><span>굵기</span><input type="range" id="brushSize" min="1" max="180" value="' +
+      '<div class="field-row"><span>굵기</span><input type="range" id="brushSize" min="1" max="180" value="' +
       Paint.brush.size +
       '"><span id="brushSizeVal">' +
       Paint.brush.size +
       "</span></div>" +
-      '<div class="slider-row"><span>농도</span><input type="range" id="brushOpacity" min="5" max="100" value="' +
+      '<div class="field-row"><span>농도</span><input type="range" id="brushOpacity" min="5" max="100" value="' +
       Math.round(Paint.brush.opacity * 100) +
       '"><span id="brushOpacityVal">' +
       Math.round(Paint.brush.opacity * 100) +
       "</span></div>" +
-      '<div class="slider-row"><span>보정</span><input type="range" id="brushSmoothing" min="0" max="10" value="' +
+      '<div class="field-row"><span>보정</span><input type="range" id="brushSmoothing" min="0" max="10" value="' +
       Paint.brush.smoothing +
       '"><span id="brushSmoothingVal">' +
       Paint.brush.smoothing +
@@ -183,27 +225,27 @@
       '<select id="symmetrySelect" style="width:100%;margin-bottom:8px;">' +
       '<option value="none">없음</option><option value="v">좌우</option><option value="h">상하</option><option value="radial">방사</option>' +
       "</select>" +
-      '<div class="slider-row" id="symSegRow" hidden><span>분할</span><input type="range" id="symSegments" min="2" max="16" value="6"><span id="symSegVal">6</span></div>' +
+      '<div class="field-row" id="symSegRow" hidden><span>분할</span><input type="range" id="symSegments" min="2" max="16" value="6"><span id="symSegVal">6</span></div>' +
       "<h4>채우기 옵션</h4>" +
-      '<div class="slider-row"><span>허용치</span><input type="range" id="fillTolerance" min="0" max="120" value="' +
+      '<div class="field-row"><span>허용치</span><input type="range" id="fillTolerance" min="0" max="120" value="' +
       fillTolerance +
       '"><span id="fillToleranceVal">' +
       fillTolerance +
       "</span></div>" +
-      '<div class="slider-row"><span>경계확장</span><input type="range" id="fillExpand" min="0" max="6" value="' +
+      '<div class="field-row"><span>경계확장</span><input type="range" id="fillExpand" min="0" max="6" value="' +
       fillExpand +
       '"><span id="fillExpandVal">' +
       fillExpand +
       "</span></div>" +
       "<h4>집중선</h4>" +
-      '<div class="slider-row"><span>밀도</span><input type="range" id="focusDensity" min="12" max="120" value="' +
+      '<div class="field-row"><span>밀도</span><input type="range" id="focusDensity" min="12" max="120" value="' +
       (Paint.focusLinesDensity || 60) +
       '"><span id="focusDensityVal">' +
       (Paint.focusLinesDensity || 60) +
       "</span></div>" +
       "<h4>스크린톤</h4>" +
-      '<div class="slider-row"><span>간격</span><input type="range" id="toneSpacing" min="4" max="30" value="10"><span id="toneSpacingVal">10</span></div>' +
-      '<div class="slider-row"><span>각도</span><input type="range" id="toneAngle" min="0" max="90" value="45"><span id="toneAngleVal">45</span></div>' +
+      '<div class="field-row"><span>간격</span><input type="range" id="toneSpacing" min="4" max="30" value="10"><span id="toneSpacingVal">10</span></div>' +
+      '<div class="field-row"><span>각도</span><input type="range" id="toneAngle" min="0" max="90" value="45"><span id="toneAngleVal">45</span></div>' +
       '<button class="btn btn-ghost btn-sm" id="toneApplyBtn" style="width:100%;">선택 영역에 스크린톤 적용</button>';
 
     var grid = el.querySelector("#brushTypeGrid");
@@ -274,20 +316,30 @@
       '<input type="color" id="colorPicker" class="color-current" value="' +
       Paint.color +
       '">' +
+      (Paint.recentColors.length
+        ? '<div class="field-row" style="margin-bottom:4px;"><span>최근</span></div><div class="swatch-grid" id="recentGrid" style="margin-bottom:10px;"></div>'
+        : "") +
       '<div class="swatch-grid" id="swatchGrid"></div>';
     el.querySelector("#colorPicker").addEventListener("input", function (e) {
-      Paint.color = e.target.value;
+      Paint.setColor(e.target.value);
     });
-    var grid = el.querySelector("#swatchGrid");
-    PALETTE.forEach(function (c) {
+
+    function makeSwatch(c, container) {
       var sw = document.createElement("div");
-      sw.className = "swatch";
+      sw.className = "swatch" + (c === Paint.color ? " active" : "");
       sw.style.background = c;
       sw.addEventListener("click", function () {
-        Paint.color = c;
-        el.querySelector("#colorPicker").value = c;
+        Paint.setColor(c);
       });
-      grid.appendChild(sw);
+      container.appendChild(sw);
+    }
+
+    var recentGrid = el.querySelector("#recentGrid");
+    if (recentGrid) Paint.recentColors.forEach(function (c) { makeSwatch(c, recentGrid); });
+
+    var grid = el.querySelector("#swatchGrid");
+    PALETTE.forEach(function (c) {
+      makeSwatch(c, grid);
     });
   }
 
@@ -336,17 +388,27 @@
         '<div class="layer-name">' +
         escapeHtml(layer.name) +
         "</div>" +
-        '<button class="layer-mini-btn' +
+        '<button class="icon-btn' +
         (layer.visible ? " on" : "") +
-        '" data-act="vis">👁</button>' +
-        '<button class="layer-mini-btn' +
+        '" data-act="vis" data-tooltip="보이기/숨기기">' +
+        Icons.svg(layer.visible ? "eye" : "eyeOff", 16) +
+        "</button>" +
+        '<button class="icon-btn' +
         (layer.locked ? " on" : "") +
-        '" data-act="lock">🔒</button>' +
-        '<button class="layer-mini-btn' +
+        '" data-act="lock" data-tooltip="잠금">' +
+        Icons.svg("lock", 16) +
+        "</button>" +
+        '<button class="icon-btn' +
         (layer.clip ? " on" : "") +
-        '" data-act="clip" title="클리핑">📎</button>' +
-        (idx > 0 ? '<button class="layer-mini-btn" data-act="up">▲</button>' : "") +
-        (idx < layers.length - 1 ? '<button class="layer-mini-btn" data-act="down">▼</button>' : "");
+        '" data-act="clip" data-tooltip="아래 레이어에 클리핑">' +
+        Icons.svg("clip", 16) +
+        "</button>" +
+        (idx > 0
+          ? '<button class="icon-btn" data-act="up" data-tooltip="위로">' + Icons.svg("chevronUp", 16) + "</button>"
+          : "") +
+        (idx < layers.length - 1
+          ? '<button class="icon-btn" data-act="down" data-tooltip="아래로">' + Icons.svg("chevronDown", 16) + "</button>"
+          : "");
 
       row.addEventListener("click", function (e) {
         if (e.target.dataset.act) return;
@@ -381,18 +443,18 @@
         var extra = document.createElement("div");
         extra.style.padding = "0 4px 8px";
         extra.innerHTML =
-          '<div class="slider-row"><span>이름</span><input type="text" id="layerNameInput" value="' +
+          '<div class="field-row"><span>이름</span><input type="text" id="layerNameInput" value="' +
           escapeHtml(layer.name) +
           '" style="flex:1;background:var(--color-surface);border:1px solid var(--color-border);color:var(--color-text);border-radius:6px;padding:4px 6px;"></div>' +
-          '<div class="slider-row"><span>불투명도</span><input type="range" id="layerOpacity" min="0" max="100" value="' +
+          '<div class="field-row"><span>불투명도</span><input type="range" id="layerOpacity" min="0" max="100" value="' +
           Math.round(layer.opacity * 100) +
           '"><span id="layerOpacityVal">' +
           Math.round(layer.opacity * 100) +
           "</span></div>" +
-          '<div class="slider-row"><span>알파잠금</span><input type="checkbox" id="layerAlphaLock"' +
+          '<div class="field-row"><span>알파잠금</span><input type="checkbox" id="layerAlphaLock"' +
           (layer.alphaLock ? " checked" : "") +
           "></div>" +
-          '<div class="slider-row"><span>블렌드</span><select id="layerBlend" style="flex:1;">' +
+          '<div class="field-row"><span>블렌드</span><select id="layerBlend" style="flex:1;">' +
           Object.keys(BLEND_LABELS)
             .map(function (k) {
               return '<option value="' + k + '"' + (layer.blend === k ? " selected" : "") + ">" + BLEND_LABELS[k] + "</option>";
@@ -429,8 +491,11 @@
   }
 
   function wireTopbar() {
+    document.getElementById("undoBtn").innerHTML = Icons.svg("undo", 18);
     document.getElementById("undoBtn").addEventListener("click", Paint.undo);
+    document.getElementById("redoBtn").innerHTML = Icons.svg("redo", 18);
     document.getElementById("redoBtn").addEventListener("click", Paint.redo);
+    wireInspectorDrawer();
     document.getElementById("clearBtn").addEventListener("click", function () {
       var layer = Paint.getActiveLayer();
       if (!layer || layer.locked) return;
@@ -449,6 +514,29 @@
       Paint.save().then(function () {
         location.href = target.backHref;
       });
+    });
+  }
+
+  // 900px 이하에서는 브러시·색상·레이어 패널이 오른쪽 고정폭 대신 슬라이드
+  // 드로어가 된다(css/tool-ui.css의 .inspector.is-drawer). 예전에는 이 "open"
+  // 클래스를 붙였다 떼는 주체가 아무 데도 없어서 좁은 화면에서는 패널 자체에
+  // 손을 댈 방법이 없었다 - 그 빠진 스위치가 이 함수다.
+  function wireInspectorDrawer() {
+    var toggleBtn = document.getElementById("inspectorToggleBtn");
+    var panel = document.getElementById("inspectorPanel");
+    var scrim = document.getElementById("inspectorScrim");
+    toggleBtn.innerHTML = Icons.svg("adjust", 18);
+
+    function setOpen(open) {
+      panel.classList.toggle("open", open);
+      scrim.classList.toggle("open", open);
+    }
+
+    toggleBtn.addEventListener("click", function () {
+      setOpen(!panel.classList.contains("open"));
+    });
+    scrim.addEventListener("click", function () {
+      setOpen(false);
     });
   }
 
@@ -604,6 +692,7 @@
             Paint.view.scale = Math.max(0.05, Math.min(8, Paint.view.scale * scaleFactor));
             Paint.view.rotation += deltaAngle;
             Paint.updateStageTransform();
+            syncZoomVal();
           }
           pinch.lastDist = dist;
           pinch.lastAngle = angle;
@@ -650,6 +739,7 @@
         var factor = e.deltaY < 0 ? 1.08 : 0.92;
         Paint.view.scale = Math.max(0.05, Math.min(8, Paint.view.scale * factor));
         Paint.updateStageTransform();
+        syncZoomVal();
       },
       { passive: false }
     );

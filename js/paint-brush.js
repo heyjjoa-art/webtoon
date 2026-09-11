@@ -335,8 +335,7 @@
           return v.toString(16).padStart(2, "0");
         })
         .join("");
-    Paint.color = hex;
-    if (Paint.onColorPicked) Paint.onColorPicked(hex);
+    Paint.setColor(hex);
   }
 
   Paint.brushDown = brushDown;

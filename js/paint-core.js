@@ -449,6 +449,19 @@ var Paint = (function () {
     ]);
   }
 
+  // ── 최근 색상 ───────────────────────────────────────────────────
+  // 색상 피커·스와치·스포이드 세 군데 모두 여기를 거치게 해서 "고르면
+  // 항상 최근 색상 줄에 남는다"를 보장한다 - recentColors 배열 자체는
+  // 있었지만(P 상태) 그동안 아무도 채워주지 않았다.
+  function setColor(hex) {
+    P.color = hex;
+    var idx = P.recentColors.indexOf(hex);
+    if (idx !== -1) P.recentColors.splice(idx, 1);
+    P.recentColors.unshift(hex);
+    if (P.recentColors.length > 12) P.recentColors.length = 12;
+    if (P.onColorPicked) P.onColorPicked(hex);
+  }
+
   P.init = init;
   P.$ = $;
   P.els = els;
@@ -474,6 +487,7 @@ var Paint = (function () {
   P.fitView = fitView;
   P.updateStageTransform = updateStageTransform;
   P.clientToCanvas = clientToCanvas;
+  P.setColor = setColor;
   P.genId = genId;
   P.BLEND_MAP = BLEND_MAP;
 

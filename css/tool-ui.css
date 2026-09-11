@@ -1,0 +1,304 @@
+/* ── 편집기 공용 UI 껍데기 ────────────────────────────────────────
+   그림판(paint.css)과 컷 편집기(editor.css)가 똑같이 필요로 하는 부품들:
+   도구 레일, 인스펙터(오른쪽/속성 패널), 필드 한 줄, 아이콘 버튼, 세그먼트
+   선택지, 툴팁, 모바일 드로어. 화면별 레이아웃(캔버스 배치 등)은 각자
+   paint.css/editor.css에 남겨두고, "버튼처럼 생긴 것들"만 여기 모은다.
+   기존 파스텔 라이트 팔레트(tokens.css)를 그대로 쓴다 - 새 색을 만들지 않는다. */
+
+/* ── 도구 레일(왼쪽 세로 아이콘 바) ─────────────────────────────── */
+.tool-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  overflow-y: auto;
+}
+
+.tool-btn {
+  width: var(--hit-min);
+  height: var(--hit-min);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform 0.06s ease;
+}
+
+.tool-btn:hover {
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+
+.tool-btn:active {
+  transform: scale(0.94);
+}
+
+.tool-btn.active {
+  background: var(--color-accent);
+  color: #1a0a0c;
+}
+
+.tool-rail-sep {
+  width: 28px;
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-1) 0;
+  flex-shrink: 0;
+}
+
+/* ── 인스펙터(오른쪽 속성/레이어 패널) ──────────────────────────── */
+.inspector {
+  width: 268px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  overflow-y: auto;
+  padding: var(--space-3);
+}
+
+.inspector-section {
+  border-bottom: 1px solid var(--color-border-soft);
+  padding: var(--space-3) var(--space-1);
+}
+
+.inspector-section:last-child {
+  border-bottom: none;
+}
+
+.inspector-section h4,
+.inspector-section h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 속성 한 줄: 라벨 + 컨트롤(슬라이더/입력/선택). slider-row를 대체한다. */
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.field-row > span:first-child {
+  flex-shrink: 0;
+  min-width: 38px;
+}
+
+.field-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--color-accent);
+}
+
+.field-row input[type="number"],
+.field-row input[type="text"],
+.field-row select {
+  flex: 1;
+  min-width: 0;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.field-row .field-val {
+  min-width: 28px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 아이콘 버튼(작은 정사각형) ──────────────────────────────────
+   시각적 크기는 조밀하게 유지하되(데스크톱 밀도), ::before로 히트 영역만
+   44px까지 넓힌다 - 터치 기기에서 손가락이 빗나가지 않게. */
+.icon-btn {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-faint);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.icon-btn::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+
+@media (pointer: coarse) {
+  .icon-btn::before {
+    inset: -10px;
+  }
+}
+
+.icon-btn:hover {
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+
+.icon-btn.on {
+  color: var(--color-accent);
+}
+
+.icon-btn.danger:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+/* ── 세그먼트 선택지(예: 채우기 cover/contain, 정렬 좌/중/우) ───── */
+.segmented {
+  display: flex;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.segmented-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  border-radius: 8px;
+  padding: 6px 4px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.segmented-btn.active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 3px rgba(120, 90, 190, 0.2);
+}
+
+/* ── 색상 스와치 그리드 ──────────────────────────────────────────── */
+.swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 5px;
+}
+
+.swatch {
+  aspect-ratio: 1;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch.active {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* ── 툴팁: title 대신 data-tooltip으로, 거친 포인터(터치)에서는 숨긴다 ── */
+[data-tooltip] {
+  position: relative;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 6px);
+    transform: translateX(-50%) translateY(-4px);
+    background: var(--color-text);
+    color: var(--color-surface);
+    font-size: 11px;
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+    z-index: var(--z-popover);
+  }
+
+  [data-tooltip]:hover::after,
+  [data-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ── 팝오버(색상 휠, 스포이드 확대경 등) ────────────────────────── */
+.tool-popover {
+  position: absolute;
+  z-index: var(--z-popover);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  padding: var(--space-3);
+}
+
+/* ── 모바일 인스펙터 드로어 ──────────────────────────────────────
+   좁은 화면에서 오른쪽 패널을 고정폭 사이드바 대신 슬라이드 드로어로
+   바꾼다. .inspector.is-drawer가 열림 상태를 갖고, .drawer-scrim이
+   바깥을 눌러 닫을 수 있게 해준다. */
+.drawer-toggle {
+  display: none;
+}
+
+.drawer-scrim {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .drawer-toggle {
+    display: inline-flex;
+  }
+
+  .inspector.is-drawer {
+    position: fixed;
+    right: 0;
+    top: var(--header-h);
+    bottom: 0;
+    width: min(320px, 86vw);
+    transform: translateX(100%);
+    transition: transform 0.22s var(--ease-out);
+    z-index: var(--z-drawer);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .inspector.is-drawer.open {
+    transform: translateX(0);
+  }
+
+  .drawer-scrim.open {
+    display: block;
+    position: fixed;
+    inset: 0;
+    top: var(--header-h);
+    background: rgba(54, 47, 74, 0.28);
+    z-index: calc(var(--z-drawer) - 1);
+  }
+}

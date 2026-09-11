@@ -6,63 +6,6 @@
   background: var(--color-bg);
 }
 
-.reader-panel {
-  position: absolute;
-  overflow: hidden;
-  background: var(--color-surface-soft);
-}
-
-.reader-panel img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.reader-panel .fit-contain img {
-  object-fit: contain;
-}
-
-.reader-panel .panel-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-faint);
-  font-size: 28px;
-}
-
-.reader-text {
-  position: absolute;
-  padding: 8px 12px;
-  font-weight: 700;
-  line-height: 1.35;
-  word-break: keep-word;
-  overflow-wrap: break-word;
-  pointer-events: none;
-}
-
-.reader-text.style-bubble {
-  background: #fff;
-  color: #1a1a1a;
-  border-radius: 18px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
-}
-
-.reader-text.style-narration {
-  background: rgba(255, 255, 255, 0.92);
-  color: #1a1a1a;
-  border-radius: 4px;
-}
-
-.reader-text.style-sfx {
-  background: transparent;
-  color: #fff;
-  font-weight: 900;
-  text-shadow: 0 0 6px rgba(0, 0, 0, 0.7), 2px 2px 0 rgba(0, 0, 0, 0.5);
-  font-size: 22px;
-}
-
 .episode-nav {
   display: flex;
   gap: 10px;

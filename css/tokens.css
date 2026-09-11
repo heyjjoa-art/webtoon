@@ -60,4 +60,31 @@
   --font-display: "Jua", var(--font-ui);
   --font-ui: "Gowun Dodum", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
     "Malgun Gothic", sans-serif;
+
+  /* ── 편집기 전용 확장 토큰 ────────────────────────────────────────
+     그림판(paint.html)·컷 편집기(edit.html)가 공유하는 간격/계층/모션 축.
+     기존에는 각 파일이 z-index·px 값을 따로 하드코딩해서 서로 어긋났다
+     (editor.js의 900/1000/500/20, paint.css의 200/50 등) - 여기 모아두고
+     그 값들을 그대로 토큰화해서(새로 지어내지 않고) 참조하게 만든다. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* 장면(컷·말풍선) < 핸들 < 가이드선 < 레일/툴바 < 모바일 드로어 < 팝오버 < 토스트 */
+  --z-scene: 1;
+  --z-handle: 20;
+  --z-guide: 500;
+  --z-rail: 15;
+  --z-drawer: 50;
+  --z-popover: 200;
+  --z-toast: 300;
+
+  --dur-fast: 120ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* 터치 최소 히트 영역(Apple/Google 권장 44px). base.css의 .btn min-height와 같다. */
+  --hit-min: 44px;
 }

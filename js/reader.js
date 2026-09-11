@@ -9,27 +9,18 @@
   var readerRoot = document.getElementById("readerRoot");
   var lockedView = document.getElementById("lockedView");
 
+  // 컷·텍스트를 js/toon-render.js(편집기와 공용)로 그린다. 예전에는 이
+  // 파일이 직접 %/px을 계산해서, 편집기가 쓰던 계산식과 몰래 어긋나 있었다
+  // (컷 높이 초과분이 잘리거나, "전체 보이기"가 안 먹거나, radius가 다르게
+  // 보이던 문제들 - 전부 계산식이 두 군데였기 때문이었다).
   function renderCanvas() {
-    var cw = episode.canvasWidth || 900;
-    var ch = episode.canvasHeight || 1200;
-    canvasEl.style.aspectRatio = cw + " / " + ch;
+    var m = ToonRender.metrics(episode);
 
-    var panels = (episode.panels || []).slice().sort(function (a, b) {
-      return (a.z || 0) - (b.z || 0);
-    });
+    ToonRender.applySceneSize(canvasEl, m);
 
-    panels.forEach(function (p) {
-      var box = document.createElement("div");
-      box.className = "reader-panel" + (p.fit === "contain" ? " fit-contain" : "");
-      box.style.left = (p.x / cw) * 100 + "%";
-      box.style.top = (p.y / ch) * 100 + "%";
-      box.style.width = (p.w / cw) * 100 + "%";
-      box.style.height = (p.h / ch) * 100 + "%";
-      box.style.borderRadius = (p.radius || 0) + "px";
-      box.style.zIndex = String(p.z || 0);
-      if (p.border) box.style.boxShadow = "inset 0 0 0 2px rgba(255,255,255,0.85)";
-      box.innerHTML = '<div class="panel-placeholder">🖼️</div>';
-      canvasEl.appendChild(box);
+    (episode.panels || []).forEach(function (p) {
+      var el = ToonRender.panelEl(p, m);
+      canvasEl.appendChild(el);
 
       var obs = new IntersectionObserver(
         function (entries) {
@@ -37,45 +28,21 @@
             if (!entry.isIntersecting) return;
             obs.disconnect();
             PanelArtStore.loadPanel(episode.id, p.id).then(function (art) {
-              if (!art) return;
-              var img = document.createElement("img");
-              img.src = art.image;
-              img.alt = "";
-              box.innerHTML = "";
-              box.appendChild(img);
+              ToonRender.applyArt(el, art);
             });
           });
         },
         { rootMargin: "400px 0px" }
       );
-      obs.observe(box);
+      obs.observe(el);
     });
 
     (episode.texts || []).forEach(function (t) {
-      var box = document.createElement("div");
-      box.className = "reader-text style-" + (t.style || "bubble");
-      box.style.left = (t.x / cw) * 100 + "%";
-      box.style.top = (t.y / ch) * 100 + "%";
-      box.style.width = (t.w / cw) * 100 + "%";
-      box.style.textAlign = t.align || "center";
-      box.dataset.baseSize = t.size || 16;
-      box.textContent = t.text || "";
-      box.style.zIndex = "1000";
-      canvasEl.appendChild(box);
+      var el = ToonRender.textEl(t, m);
+      canvasEl.appendChild(el);
     });
 
-    rescaleText();
-    var ro = new ResizeObserver(rescaleText);
-    ro.observe(canvasEl);
-  }
-
-  function rescaleText() {
-    var cw = episode.canvasWidth || 900;
-    var scale = canvasEl.getBoundingClientRect().width / cw;
-    canvasEl.querySelectorAll(".reader-text").forEach(function (box) {
-      var base = Number(box.dataset.baseSize) || 16;
-      box.style.fontSize = Math.max(9, base * scale) + "px";
-    });
+    ToonRender.watchScale(canvasEl, m.cw);
   }
 
   function renderNav() {
