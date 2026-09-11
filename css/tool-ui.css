@@ -167,6 +167,17 @@
   color: var(--color-danger);
 }
 
+/* 지금 색상 - 포토샵의 전경색 스와치처럼, 드로어를 열지 않아도 상단 바에
+   항상 보인다. 배경색은 JS가 Paint.color로 매번 맞춘다. */
+.current-color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  display: block;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
 /* ── 세그먼트 선택지(예: 채우기 cover/contain, 정렬 좌/중/우) ───── */
 .segmented {
   display: flex;

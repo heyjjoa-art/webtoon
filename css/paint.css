@@ -213,3 +213,21 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* 상세 옵션 미리보기(브러시 획, 스크린톤/빗금 패턴) - 슬라이더를 움직이면
+   그 자리에서 바로 다시 그려진다. */
+.tool-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 240 / 46;
+  background: repeating-conic-gradient(#e2d9f2 0% 25%, #f7f3ff 0% 50%) 50% / 10px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+}
+
+#tonePreviewCanvas,
+#hatchPreviewCanvas {
+  aspect-ratio: 240 / 70;
+}

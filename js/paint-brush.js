@@ -90,6 +90,25 @@
     ctx.restore();
   }
 
+  // ── 미리보기 ────────────────────────────────────────────────────
+  // 상세 옵션 패널의 작은 캔버스에 지금 설정(종류/굵기/농도)으로 그으면 어떤
+  // 느낌인지 보여준다. stampDab을 그대로 써서 실제 그리기와 다르게 보일 일이
+  // 없다 - 레이어/알파잠금/클리핑 같은 건 미리보기와 무관해서 빼고 찍는다.
+  function previewStroke(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    var size = Math.min(Paint.brush.size, h * 0.85);
+    var y = h / 2;
+    var margin = size / 2 + 4;
+    var x0 = Math.min(margin, w / 2);
+    var x1 = Math.max(w - margin, w / 2);
+    var spacing = spacingFor(size);
+    var steps = Math.max(1, Math.round((x1 - x0) / spacing));
+    for (var i = 0; i <= steps; i++) {
+      var t = i / steps;
+      stampDab(ctx, x0 + (x1 - x0) * t, y, size, Paint.brush.opacity, false);
+    }
+  }
+
   function spacingFor(size) {
     var type = Paint.brush.type;
     var factor = type === "airbrush" ? 0.4 : type === "soft" || type === "watercolor" ? 0.22 : 0.16;
@@ -221,11 +240,15 @@
   }
 
   // ── 페인트통 ────────────────────────────────────────────────────
-  function colorDistance(data, idx, r, g, b) {
+  // da는 "시작 지점의 실제 알파"와 비교해야 한다 - 예전에는 255(불투명)로
+  // 고정돼 있어서, 아직 아무것도 안 그려 투명한(alpha 0) 캔버스에서 채우기를
+  // 누르면 시작 픽셀조차 "너무 다르다"고 판정돼 한 칸도 안 채워지는 버그가
+  // 있었다(선화 없는 새 캔버스에 배경색부터 채우는, 아주 흔한 경우였다).
+  function colorDistance(data, idx, r, g, b, a) {
     var dr = data[idx] - r,
       dg = data[idx + 1] - g,
       db = data[idx + 2] - b,
-      da = data[idx + 3] - 255;
+      da = data[idx + 3] - a;
     return Math.sqrt(dr * dr + dg * dg + db * db + da * da * 0.25);
   }
 
@@ -274,7 +297,7 @@
       if (visited[pos]) continue;
       visited[pos] = 1;
       var idx = pos * 4;
-      if (colorDistance(data, idx, startR, startG, startB) > tol) continue;
+      if (colorDistance(data, idx, startR, startG, startB, startA) > tol) continue;
       mask[pos] = 1;
       if (cx < minX) minX = cx;
       if (cx > maxX) maxX = cx;
@@ -352,6 +375,7 @@
   Paint.brushDown = brushDown;
   Paint.brushMove = brushMove;
   Paint.brushUp = brushUp;
+  Paint.previewStroke = previewStroke;
   Paint.floodFillAt = floodFillAt;
   Paint.eyedropAt = eyedropAt;
   Paint.symmetry = { mode: "none", segments: 6 };

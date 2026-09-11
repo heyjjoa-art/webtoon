@@ -345,6 +345,51 @@
     if (Paint.onLayersChanged) Paint.onLayersChanged();
   }
 
+  // ── 스크린톤/빗금 미리보기 ─────────────────────────────────────
+  // 상세 옵션 패널의 작은 캔버스에 지금 슬라이더 값으로 실제 적용했을 때와
+  // 똑같은 회전+타일 반복을 그대로 그려 보여준다(캔버스에 직접 쓰지 않고
+  // 되돌리기 기록도 남기지 않는다 - applyScreentone/applyHatching과 달리
+  // 그냥 미리보기용 ctx 하나만 받는다).
+  function previewScreentone(ctx, w, h, spacing, angleDeg, dotSize) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.clip();
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate((angleDeg * Math.PI) / 180);
+    ctx.fillStyle = Paint.color;
+    var diag = Math.hypot(w, h);
+    for (var y = -diag; y <= diag; y += spacing) {
+      for (var x = -diag; x <= diag; x += spacing) {
+        ctx.beginPath();
+        ctx.arc(x, y, dotSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  function previewHatching(ctx, w, h, spacing, angleDeg, lineWidth) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.clip();
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate((angleDeg * Math.PI) / 180);
+    ctx.strokeStyle = Paint.color;
+    ctx.lineWidth = lineWidth;
+    var diag = Math.hypot(w, h);
+    for (var x = -diag; x <= diag; x += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(x, -diag);
+      ctx.lineTo(x, diag);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   // ── 대칭자 설정 ──────────────────────────────────────────────────
   function setSymmetry(mode, segments) {
     Paint.symmetry = { mode: mode, segments: segments || 6 };
@@ -368,5 +413,7 @@
   Paint.focusLinesUp = focusLinesUp;
   Paint.applyScreentone = applyScreentone;
   Paint.applyHatching = applyHatching;
+  Paint.previewScreentone = previewScreentone;
+  Paint.previewHatching = previewHatching;
   Paint.setSymmetry = setSymmetry;
 })();

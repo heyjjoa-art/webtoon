@@ -33,6 +33,11 @@ var Icons = (function () {
       '<circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1" />',
     text: '<path d="M5 6h14" /><path d="M12 6v13" /><path d="M9 19h6" />',
     gradient: '<rect x="4" y="7" width="16" height="10" rx="2" /><path d="M4 12h16" opacity=".5" />',
+    layers:
+      '<path d="M12 3l8.5 5-8.5 5-8.5-5z" /><path d="M3.5 13l8.5 5 8.5-5" /><path d="M3.5 17l8.5 5 8.5-5" />',
+    tone:
+      '<circle cx="7" cy="7" r="1.3" fill="currentColor" stroke="none" /><circle cx="12" cy="7" r="1.3" fill="currentColor" stroke="none" /><circle cx="17" cy="7" r="1.3" fill="currentColor" stroke="none" /><circle cx="7" cy="12" r="1.3" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" /><circle cx="17" cy="12" r="1.3" fill="currentColor" stroke="none" /><circle cx="7" cy="17" r="1.3" fill="currentColor" stroke="none" /><circle cx="12" cy="17" r="1.3" fill="currentColor" stroke="none" /><circle cx="17" cy="17" r="1.3" fill="currentColor" stroke="none" />',
+    hatch: '<path d="M4 20L20 4M4 13L13 4M11 20L20 11" />',
     adjust:
       '<path d="M4 7h9M17 7h3" /><circle cx="14" cy="7" r="2" fill="currentColor" stroke="none" /><path d="M4 12h3M11 12h9" /><circle cx="8" cy="12" r="2" fill="currentColor" stroke="none" /><path d="M4 17h9M17 17h3" /><circle cx="14" cy="17" r="2" fill="currentColor" stroke="none" />',
     undo: '<path d="M7 8L4 11l3 3" /><path d="M4 11h10a5 5 0 0 1 0 10h-2" />',
