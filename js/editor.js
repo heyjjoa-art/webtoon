@@ -712,6 +712,7 @@
         z: maxTextZ() + 1,
         text: style === "sfx" ? "쿠구궁" : "대사를 입력하세요",
         style: style,
+        font: style === "sfx" ? "impact" : "default",
         size: style === "sfx" ? 28 : 16,
         align: "center"
       };
@@ -979,6 +980,11 @@
         escapeHtml(t.text) +
         "</textarea>" +
         '<div class="field-row"><span>종류</span><select id="propStyle"><option value="bubble">말풍선</option><option value="narration">나레이션</option><option value="sfx">효과음</option></select></div>' +
+        '<div class="field-row"><span>글꼴</span><select id="propFont">' +
+        ToonRender.FONT_OPTIONS.map(function (f) {
+          return '<option value="' + f.key + '">' + f.label + "</option>";
+        }).join("") +
+        "</select></div>" +
         '<div class="field-row"><span>정렬</span><select id="propAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select></div>' +
         '<div class="field-row"><span>크기</span><input type="range" id="propSize" min="10" max="60" value="' +
         (t.size || 16) +
@@ -1010,6 +1016,13 @@
       sidePanel.querySelector("#propStyle").value = t.style || "bubble";
       sidePanel.querySelector("#propStyle").addEventListener("change", function (e) {
         t.style = e.target.value;
+        render();
+        history.commit();
+        scheduleSave();
+      });
+      sidePanel.querySelector("#propFont").value = t.font || "default";
+      sidePanel.querySelector("#propFont").addEventListener("change", function (e) {
+        t.font = e.target.value;
         render();
         history.commit();
         scheduleSave();

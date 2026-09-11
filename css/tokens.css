@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&family=Black+Han+Sans&family=Nanum+Pen+Script&display=swap");
 
 /* ── 디자인 토큰: "책상 위 스크랩북" 컨셉 ─────────────────────────────
    라벤더~하늘 파스텔 배경 위에 웹툰(코랄)·그림(민트)·글(버터옐로) 세 구역이
@@ -60,6 +60,10 @@
   --font-display: "Jua", var(--font-ui);
   --font-ui: "Gowun Dodum", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
     "Malgun Gothic", sans-serif;
+  /* 말풍선/나레이션/효과음 글꼴 선택지(js/toon-render.js의 FONT_OPTIONS)가
+     쓴다 - 효과음은 굵고 각진 임팩트체, 손글씨체는 나레이션에 잘 어울린다. */
+  --font-impact: "Black Han Sans", var(--font-display);
+  --font-hand: "Nanum Pen Script", var(--font-ui);
 
   /* ── 편집기 전용 확장 토큰 ────────────────────────────────────────
      그림판(paint.html)·컷 편집기(edit.html)가 공유하는 간격/계층/모션 축.

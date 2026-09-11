@@ -16,6 +16,21 @@ var ToonRender = (function () {
   // 캔버스 아래쪽 여백 - 마지막 컷/텍스트 바로 아래에서 편집이 답답하지 않게.
   var BOTTOM_PAD = 200;
   var STYLE_CLASSES = ["style-bubble", "style-narration", "style-sfx"];
+  // 말풍선/나레이션/효과음 글꼴 선택지 - 편집기(속성 패널의 <select>)와
+  // 렌더러(positionText)가 이 하나의 목록만 보고 같은 글꼴을 그리게 한다.
+  var FONT_OPTIONS = [
+    { key: "default", label: "기본", css: "" },
+    { key: "title", label: "타이틀체", css: "var(--font-display)" },
+    { key: "impact", label: "임팩트", css: "var(--font-impact)" },
+    { key: "hand", label: "손글씨", css: "var(--font-hand)" }
+  ];
+  function fontCss(key) {
+    var found = null;
+    FONT_OPTIONS.forEach(function (f) {
+      if (f.key === key) found = f;
+    });
+    return found ? found.css : "";
+  }
 
   function contentBottom(episode) {
     var maxY = 0;
@@ -72,6 +87,7 @@ var ToonRender = (function () {
     el.style.width = pct(t.w, m.cw);
     el.style.textAlign = t.align || "center";
     el.style.zIndex = String(t.z != null ? t.z : 900);
+    el.style.fontFamily = fontCss(t.font);
     el.style.setProperty("--tn-size", String(t.size || 16));
     el.style.color = t.color || "";
   }
@@ -146,6 +162,7 @@ var ToonRender = (function () {
   }
 
   return {
+    FONT_OPTIONS: FONT_OPTIONS,
     contentBottom: contentBottom,
     metrics: metrics,
     panelEl: panelEl,
