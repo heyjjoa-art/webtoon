@@ -384,31 +384,19 @@
     return !!transformState;
   }
 
-  // ── 집중선 ──────────────────────────────────────────────────────
-  var focusCenter = null;
-  function focusLinesDown(x, y) {
-    focusCenter = { x: x, y: y };
-  }
-  function focusLinesMove(x, y) {
-    if (!focusCenter) return;
-    var ctx = Paint.els.overlayCtx;
-    ctx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
-    drawFocusLines(ctx, focusCenter.x, focusCenter.y, Math.hypot(x - focusCenter.x, y - focusCenter.y), Paint.focusLinesDensity || 60);
-  }
-  function focusLinesUp(x, y) {
-    if (!focusCenter) return;
-    var radius = Math.hypot(x - focusCenter.x, y - focusCenter.y);
-    var layer = Paint.getActiveLayer();
-    if (layer && !layer.locked && radius > 4) {
-      Paint.strokeStart(layer.id);
-      drawFocusLines(layer.ctx, focusCenter.x, focusCenter.y, radius, Paint.focusLinesDensity || 60);
-      Paint.extendDirty(focusCenter.x, focusCenter.y, radius + 20);
-      Paint.strokeEnd();
-    }
-    focusCenter = null;
-    Paint.els.overlayCtx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
-    Paint.composite();
-    if (Paint.onLayersChanged) Paint.onLayersChanged();
+  // ── 효과(집중선/플래시/땀/눈물/오싹/모션/화남/반짝임) ───────────
+  // 전부 "중심을 누르고 드래그해 크기(모션은 방향까지) 정하고 손을 떼면
+  // 찍힌다"는 같은 상호작용을 쓴다 - 어떤 모양을 찍을지만 Paint.effectKind로
+  // 갈라 보낸다. 도구 하나에 종류만 늘어나는 구조라 새 효과를 추가할 때도
+  // draw 함수 하나와 switch 한 줄만 있으면 된다.
+  var effectStart = null;
+  Paint.effectKind = "focus";
+  Paint.flashIntensity = 0.8;
+
+  function hexToRgbLocal(hex) {
+    var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+    if (!m) return { r: 255, g: 255, b: 255 };
+    return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
   }
 
   // seed 기반 의사난수 - 매번 결과가 흔들리지 않도록 미리보기와 최종 결과가
@@ -418,7 +406,8 @@
     return x - Math.floor(x);
   }
 
-  function drawFocusLines(ctx, cx, cy, radius, count) {
+  function drawFocusLines(ctx, cx, cy, radius) {
+    var count = Paint.focusLinesDensity || 60;
     ctx.save();
     ctx.strokeStyle = Paint.color;
     ctx.lineCap = "round";
@@ -439,21 +428,9 @@
     ctx.restore();
   }
 
-  // ── 플래시(방사형 빛 번짐) ─────────────────────────────────────
-  // 집중선과 같은 방식(중심을 누르고 드래그해 반지름 정하기)이지만, 선 다발
-  // 대신 중심이 밝고 가장자리로 갈수록 옅어지는 원형 그라디언트 하나를
-  // 찍는다 - 충격/섬광 효과에 쓴다.
-  var flashCenter = null;
-  Paint.flashIntensity = 0.8;
-
-  function hexToRgbLocal(hex) {
-    var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
-    if (!m) return { r: 255, g: 255, b: 255 };
-    return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
-  }
-
-  function drawFlash(ctx, cx, cy, radius, intensity) {
+  function drawFlash(ctx, cx, cy, radius) {
     if (radius <= 0) return;
+    var intensity = Paint.flashIntensity;
     var rgb = hexToRgbLocal(Paint.color);
     var col = rgb.r + "," + rgb.g + "," + rgb.b;
     var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
@@ -468,26 +445,180 @@
     ctx.restore();
   }
 
-  function flashDown(x, y) {
-    flashCenter = { x: x, y: y };
+  // 물방울 하나(땀/눈물이 공유하는 기본 모양) - 위는 뾰족, 아래는 둥글다.
+  function dropPath(ctx, cx, cy, r) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.bezierCurveTo(cx + r * 0.95, cy - r * 0.1, cx + r * 0.75, cy + r, cx, cy + r);
+    ctx.bezierCurveTo(cx - r * 0.75, cy + r, cx - r * 0.95, cy - r * 0.1, cx, cy - r);
+    ctx.closePath();
   }
-  function flashMove(x, y) {
-    if (!flashCenter) return;
+
+  function fillDrop(ctx, cx, cy, r) {
+    dropPath(ctx, cx, cy, r);
+    ctx.fillStyle = "rgba(190,225,255,0.9)";
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, r * 0.08);
+    ctx.strokeStyle = "rgba(60,110,160,0.9)";
+    ctx.stroke();
+  }
+
+  function drawSweat(ctx, cx, cy, radius) {
+    var r = Math.max(6, Math.min(radius, 60));
+    ctx.save();
+    fillDrop(ctx, cx, cy, r);
+    ctx.beginPath();
+    ctx.ellipse(cx - r * 0.28, cy - r * 0.15, r * 0.18, r * 0.28, -0.3, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawTear(ctx, cx, cy, radius) {
+    var count = 3;
+    var big = Math.max(6, Math.min(radius, 50));
+    ctx.save();
+    for (var i = 0; i < count; i++) {
+      var t = i / (count - 1);
+      var r = big * (1 - t * 0.55);
+      var y = cy + t * big * 1.6;
+      fillDrop(ctx, cx, y, r);
+    }
+    ctx.restore();
+  }
+
+  function drawChill(ctx, cx, cy, radius) {
+    var r = Math.max(10, Math.min(radius, 90));
+    var lines = 3;
+    ctx.save();
+    ctx.strokeStyle = "rgba(120,180,230,0.9)";
+    ctx.lineCap = "round";
+    for (var i = 0; i < lines; i++) {
+      var x = cx + (i - (lines - 1) / 2) * (r * 0.5);
+      ctx.lineWidth = Math.max(1.5, r * 0.06);
+      ctx.beginPath();
+      var segs = 4;
+      for (var s = 0; s <= segs; s++) {
+        var yy = cy - r + (s / segs) * r * 2;
+        var xx = x + (s % 2 === 0 ? -1 : 1) * r * 0.18;
+        if (s === 0) ctx.moveTo(xx, yy);
+        else ctx.lineTo(xx, yy);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // 방향이 있는 유일한 효과 - 시작점에서 끝점 쪽을 "앞"으로 보고, 그 반대
+  // 방향으로 속도선을 늘어뜨린다(달리는 발 옆에 그으면 그 방향으로 움직이는
+  // 것처럼 보인다).
+  function drawMotion(ctx, x0, y0, x1, y1) {
+    var len = Math.max(10, Math.hypot(x1 - x0, y1 - y0));
+    var angle = Math.atan2(y1 - y0, x1 - x0);
+    var lines = 4;
+    ctx.save();
+    ctx.translate(x0, y0);
+    ctx.rotate(angle);
+    ctx.strokeStyle = Paint.color;
+    ctx.lineCap = "round";
+    for (var i = 0; i < lines; i++) {
+      var mid = (lines - 1) / 2;
+      var off = (i - mid) * (len * 0.18);
+      ctx.lineWidth = Math.max(1, len * 0.04) * (1 - Math.abs(i - mid) * 0.15);
+      ctx.globalAlpha = 0.8 - Math.abs(i - mid) * 0.15;
+      ctx.beginPath();
+      ctx.moveTo(0, off);
+      ctx.quadraticCurveTo(len * 0.5, off * 1.4, len, off * 0.6);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawAnger(ctx, cx, cy, radius) {
+    var r = Math.max(8, Math.min(radius, 40));
+    ctx.save();
+    ctx.strokeStyle = "rgba(200,40,40,0.95)";
+    ctx.lineWidth = Math.max(2, r * 0.22);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(cx - r, cy - r * 0.15);
+    ctx.quadraticCurveTo(cx, cy, cx + r, cy + r * 0.15);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.15, cy - r);
+    ctx.quadraticCurveTo(cx, cy, cx + r * 0.15, cy + r);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function starPath(ctx, cx, cy, r) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.quadraticCurveTo(cx + r * 0.15, cy - r * 0.15, cx + r, cy);
+    ctx.quadraticCurveTo(cx + r * 0.15, cy + r * 0.15, cx, cy + r);
+    ctx.quadraticCurveTo(cx - r * 0.15, cy + r * 0.15, cx - r, cy);
+    ctx.quadraticCurveTo(cx - r * 0.15, cy - r * 0.15, cx, cy - r);
+    ctx.closePath();
+  }
+
+  function drawSparkle(ctx, cx, cy, radius) {
+    var r = Math.max(6, Math.min(radius, 50));
+    ctx.save();
+    ctx.fillStyle = Paint.color;
+    starPath(ctx, cx, cy, r);
+    ctx.fill();
+    starPath(ctx, cx + r * 0.7, cy - r * 0.6, r * 0.4);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawEffectByKind(ctx, x0, y0, x1, y1) {
+    var radius = Math.hypot(x1 - x0, y1 - y0);
+    if (Paint.effectKind === "flash") drawFlash(ctx, x0, y0, radius);
+    else if (Paint.effectKind === "sweat") drawSweat(ctx, x0, y0, radius);
+    else if (Paint.effectKind === "tear") drawTear(ctx, x0, y0, radius);
+    else if (Paint.effectKind === "chill") drawChill(ctx, x0, y0, radius);
+    else if (Paint.effectKind === "motion") drawMotion(ctx, x0, y0, x1, y1);
+    else if (Paint.effectKind === "anger") drawAnger(ctx, x0, y0, radius);
+    else if (Paint.effectKind === "sparkle") drawSparkle(ctx, x0, y0, radius);
+    else drawFocusLines(ctx, x0, y0, radius);
+  }
+
+  // 상세 옵션 패널의 작은 캔버스에 지금 고른 종류를 대표 크기로 한 번
+  // 그려서 미리 보여준다.
+  function previewEffect(ctx, w, h, kind) {
+    ctx.clearRect(0, 0, w, h);
+    var prevKind = Paint.effectKind;
+    Paint.effectKind = kind;
+    if (kind === "motion") drawEffectByKind(ctx, w * 0.15, h / 2, w * 0.85, h / 2);
+    else {
+      var r = Math.min(w, h) * 0.38;
+      drawEffectByKind(ctx, w / 2, h / 2, w / 2 + r, h / 2);
+    }
+    Paint.effectKind = prevKind;
+  }
+
+  function effectDown(x, y) {
+    effectStart = { x: x, y: y };
+  }
+  function effectMove(x, y) {
+    if (!effectStart) return;
     var ctx = Paint.els.overlayCtx;
     ctx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
-    drawFlash(ctx, flashCenter.x, flashCenter.y, Math.hypot(x - flashCenter.x, y - flashCenter.y), Paint.flashIntensity);
+    drawEffectByKind(ctx, effectStart.x, effectStart.y, x, y);
   }
-  function flashUp(x, y) {
-    if (!flashCenter) return;
-    var radius = Math.hypot(x - flashCenter.x, y - flashCenter.y);
+  function effectUp(x, y) {
+    if (!effectStart) return;
+    var radius = Math.hypot(x - effectStart.x, y - effectStart.y);
     var layer = Paint.getActiveLayer();
     if (layer && !layer.locked && radius > 4) {
       Paint.strokeStart(layer.id);
-      drawFlash(layer.ctx, flashCenter.x, flashCenter.y, radius, Paint.flashIntensity);
-      Paint.extendDirty(flashCenter.x, flashCenter.y, radius + 4);
+      drawEffectByKind(layer.ctx, effectStart.x, effectStart.y, x, y);
+      Paint.extendDirty(effectStart.x, effectStart.y, radius + 30);
+      Paint.extendDirty(x, y, radius + 30);
       Paint.strokeEnd();
     }
-    flashCenter = null;
+    effectStart = null;
     Paint.els.overlayCtx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
     Paint.composite();
     if (Paint.onLayersChanged) Paint.onLayersChanged();
@@ -637,12 +768,10 @@
   Paint.transformCommit = transformCommit;
   Paint.transformCancel = transformCancel;
   Paint.isTransforming = isTransforming;
-  Paint.focusLinesDown = focusLinesDown;
-  Paint.focusLinesMove = focusLinesMove;
-  Paint.focusLinesUp = focusLinesUp;
-  Paint.flashDown = flashDown;
-  Paint.flashMove = flashMove;
-  Paint.flashUp = flashUp;
+  Paint.effectDown = effectDown;
+  Paint.effectMove = effectMove;
+  Paint.effectUp = effectUp;
+  Paint.previewEffect = previewEffect;
   Paint.applyScreentone = applyScreentone;
   Paint.applyHatching = applyHatching;
   Paint.previewScreentone = previewScreentone;

@@ -362,13 +362,18 @@
     x = Math.max(0, Math.min(Paint.nativeW - 1, Math.floor(x)));
     y = Math.max(0, Math.min(Paint.nativeH - 1, Math.floor(y)));
     var data = Paint.els.compositeCtx.getImageData(x, y, 1, 1).data;
+    // 아직 아무것도 안 그려진 자리는 캔버스 픽셀이 완전히 투명(0,0,0,0)이라
+    // 그대로 읽으면 검정으로 찍힌다 - 화면에는 흰 종이로 보이니(#compositeCanvas의
+    // 흰 배경) 실제로도 흰색을 고른 것처럼 맞춰준다.
     var hex =
-      "#" +
-      [data[0], data[1], data[2]]
-        .map(function (v) {
-          return v.toString(16).padStart(2, "0");
-        })
-        .join("");
+      data[3] === 0
+        ? "#ffffff"
+        : "#" +
+          [data[0], data[1], data[2]]
+            .map(function (v) {
+              return v.toString(16).padStart(2, "0");
+            })
+            .join("");
     Paint.setColor(hex);
   }
 

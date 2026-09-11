@@ -58,7 +58,7 @@
     { key: "select", icon: "select", label: "선택" },
     { key: "transform", icon: "transform", label: "변형" },
     { key: "shape", icon: "rect", label: "도형(직선/사각형/원)" },
-    { key: "effect", icon: "focus", label: "효과(집중선/플래시)", sep: true }
+    { key: "effect", icon: "focus", label: "효과(집중선/플래시/땀/눈물 등)", sep: true }
   ];
 
   // 도구 하나하나가 아니라 "옵션 패널이 어느 것을 보여줄지"의 그룹 - 지우개는
@@ -82,6 +82,20 @@
     { key: "airbrush", label: "에어브러시" },
     { key: "watercolor", label: "수채" },
     { key: "crayon", label: "크레용" }
+  ];
+
+  // 만화 표현에 흔히 쓰는 효과 모음 - 전부 "누르고 끌어서 크기(모션은
+  // 방향까지) 정하기"라는 같은 동작을 쓴다(js/paint-extras.js의 effectDown/
+  // Move/Up 하나가 종류만 갈라 보낸다).
+  var EFFECT_KINDS = [
+    { key: "focus", label: "집중선" },
+    { key: "flash", label: "플래시" },
+    { key: "sweat", label: "땀" },
+    { key: "tear", label: "눈물" },
+    { key: "chill", label: "오싹" },
+    { key: "motion", label: "발효과" },
+    { key: "anger", label: "화남" },
+    { key: "sparkle", label: "반짝임" }
   ];
 
   var PALETTE = [
@@ -321,7 +335,6 @@
 
   // ── 브러시 섹션 ─────────────────────────────────────────────────
   var fillMode = "solid"; // 채우기 패널의 "단색"/"스크린톤(dot)"/"빗금(line)" 선택 상태
-  var effectKind = "focus"; // 효과 패널의 "집중선"/"플래시" 선택 상태
 
   function buildBrushSection() {
     var el = document.getElementById("brushSection");
@@ -403,10 +416,7 @@
       // ── 효과(집중선/플래시 통합) ────────────────────────────────────
       '<div class="tool-panel" data-tool="effect">' +
       "<h4>효과</h4>" +
-      '<div class="segmented" id="effectKindSeg">' +
-      '<button class="segmented-btn" data-v="focus">집중선</button>' +
-      '<button class="segmented-btn" data-v="flash">플래시</button>' +
-      "</div>" +
+      '<div class="brush-grid" id="effectKindGrid"></div>' +
       '<div class="field-row" id="focusDensityRow"><span>밀도</span><input type="range" id="focusDensity" min="12" max="120" value="' +
       (Paint.focusLinesDensity || 60) +
       '"><span id="focusDensityVal">' +
@@ -417,7 +427,8 @@
       '"><span id="flashIntensityVal">' +
       Math.round((Paint.flashIntensity != null ? Paint.flashIntensity : 0.8) * 100) +
       "</span></div>" +
-      '<p class="tool-panel-hint">캔버스를 눌러 중심을 잡고 드래그해 크기를 정한 뒤 손을 뗍니다.</p>' +
+      '<canvas class="tool-preview" id="effectPreviewCanvas" width="240" height="70"></canvas>' +
+      '<p class="tool-panel-hint">캔버스를 눌러 중심을 잡고 드래그해 크기(발효과는 방향도)를 정한 뒤 손을 뗍니다.</p>' +
       "</div>" +
       // ── 선택 ──────────────────────────────────────────────────────
       '<div class="tool-panel" data-tool="select">' +
@@ -485,9 +496,11 @@
     });
     bindRange(el, "focusDensity", "focusDensityVal", function (v) {
       Paint.focusLinesDensity = v;
+      redrawEffectPreview();
     });
     bindRange(el, "flashIntensity", "flashIntensityVal", function (v) {
       Paint.flashIntensity = v / 100;
+      redrawEffectPreview();
     });
     bindRange(el, "patternSpacing", "patternSpacingVal", redrawPatternPreview);
     bindRange(el, "patternSize", "patternSizeVal", redrawPatternPreview);
@@ -546,21 +559,31 @@
       Paint.shapeFilled = e.target.checked;
     });
 
-    // ── 효과: 집중선/플래시 모드 전환 ───────────────────────────────
+    // ── 효과: 종류 그리드 + 미리보기 ────────────────────────────────
+    function redrawEffectPreview() {
+      var c = el.querySelector("#effectPreviewCanvas");
+      if (c && Paint.previewEffect) Paint.previewEffect(c.getContext("2d"), c.width, c.height, Paint.effectKind);
+    }
+    var effectGrid = el.querySelector("#effectKindGrid");
+    EFFECT_KINDS.forEach(function (k) {
+      var chip = document.createElement("div");
+      chip.className = "brush-chip" + (Paint.effectKind === k.key ? " active" : "");
+      chip.textContent = k.label;
+      chip.addEventListener("click", function () {
+        setEffectKind(k.key);
+      });
+      effectGrid.appendChild(chip);
+    });
     function setEffectKind(kind) {
-      effectKind = kind;
-      Array.prototype.forEach.call(el.querySelectorAll("#effectKindSeg .segmented-btn"), function (b) {
-        b.classList.toggle("active", b.dataset.v === kind);
+      Paint.effectKind = kind;
+      Array.prototype.forEach.call(effectGrid.querySelectorAll(".brush-chip"), function (chip, i) {
+        chip.classList.toggle("active", EFFECT_KINDS[i].key === kind);
       });
       el.querySelector("#focusDensityRow").hidden = kind !== "focus";
       el.querySelector("#flashIntensityRow").hidden = kind !== "flash";
+      redrawEffectPreview();
     }
-    Array.prototype.forEach.call(el.querySelectorAll("#effectKindSeg .segmented-btn"), function (btn) {
-      btn.addEventListener("click", function () {
-        setEffectKind(btn.dataset.v);
-      });
-    });
-    setEffectKind(effectKind);
+    setEffectKind(Paint.effectKind);
 
     var symSelect = el.querySelector("#symmetrySelect");
     symSelect.value = Paint.symmetry.mode;
@@ -1038,10 +1061,8 @@
       } else if (tool === "eyedropper") Paint.eyedropAt(pt.x, pt.y);
       else if (tool === "select") Paint.selectDown(pt.x, pt.y);
       else if (tool === "shape") Paint.shapeDown(pt.x, pt.y);
-      else if (tool === "effect") {
-        if (effectKind === "flash") Paint.flashDown(pt.x, pt.y);
-        else Paint.focusLinesDown(pt.x, pt.y);
-      } else if (tool === "transform" && Paint.isTransforming()) transformDragStart = pt;
+      else if (tool === "effect") Paint.effectDown(pt.x, pt.y);
+      else if (tool === "transform" && Paint.isTransforming()) transformDragStart = pt;
     }
 
     var transformDragStart = null;
@@ -1050,10 +1071,8 @@
       if (tool === "brush" || tool === "eraser") Paint.brushMove(pt.x, pt.y, currentPressure);
       else if (tool === "select") Paint.selectMove(pt.x, pt.y);
       else if (tool === "shape") Paint.shapeMove(pt.x, pt.y);
-      else if (tool === "effect") {
-        if (effectKind === "flash") Paint.flashMove(pt.x, pt.y);
-        else Paint.focusLinesMove(pt.x, pt.y);
-      } else if (tool === "transform" && transformDragStart) {
+      else if (tool === "effect") Paint.effectMove(pt.x, pt.y);
+      else if (tool === "transform" && transformDragStart) {
         Paint.transformMoveBy(pt.x - transformDragStart.x, pt.y - transformDragStart.y);
         transformDragStart = pt;
       }
@@ -1063,10 +1082,8 @@
       if (tool === "brush" || tool === "eraser") Paint.brushUp(pt.x, pt.y);
       else if (tool === "select") Paint.selectUp(pt.x, pt.y);
       else if (tool === "shape") Paint.shapeUp(pt.x, pt.y);
-      else if (tool === "effect") {
-        if (effectKind === "flash") Paint.flashUp(pt.x, pt.y);
-        else Paint.focusLinesUp(pt.x, pt.y);
-      } else if (tool === "transform") transformDragStart = null;
+      else if (tool === "effect") Paint.effectUp(pt.x, pt.y);
+      else if (tool === "transform") transformDragStart = null;
     }
 
     var currentPressure = 0.5;
