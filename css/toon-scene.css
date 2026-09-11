@@ -78,6 +78,62 @@
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
 }
 
+/* 말풍선(꼬리) - 기본 말풍선에 왼쪽 아래로 향하는 꼬리만 덧붙인다. .tn-text가
+   이미 position:absolute라 ::after는 별다른 설정 없이 이 엘리먼트 자신을
+   기준으로 자리잡는다. */
+.tn-text.style-bubble-tail {
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 18px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+.tn-text.style-bubble-tail::after {
+  content: "";
+  position: absolute;
+  left: 26px;
+  bottom: -9px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 12px solid #fff;
+  filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.15));
+}
+
+/* 생각풍선 - 뭉실한 타원 배경 + 꼬리 대신 점점 작아지는 동그라미 세 개
+   (box-shadow로 복제해서 별도 엘리먼트 없이 만든다). */
+.tn-text.style-cloud {
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 50% / 38%;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.tn-text.style-cloud::after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  bottom: -14px;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: -13px 9px 0 -2px #fff, -21px 16px 0 -4px #fff;
+}
+
+/* 효과음 폭발형 - 별 모양 clip-path. 둥근 모서리는 낼 수 없지만(폴리곤은
+   항상 각짐) 그게 오히려 이 모양의 포인트다. */
+.tn-text.style-burst {
+  background: #fff;
+  color: #1a1a1a;
+  clip-path: polygon(
+    50% 0%, 61% 15%, 80% 5%, 82% 25%, 100% 30%, 88% 45%, 100% 60%, 82% 68%,
+    85% 88%, 65% 80%, 58% 100%, 45% 82%, 25% 95%, 22% 75%, 2% 72%, 15% 55%,
+    0% 40%, 18% 30%, 12% 10%, 32% 18%
+  );
+}
+
 .tn-text.style-narration {
   background: rgba(255, 255, 255, 0.92);
   color: #1a1a1a;

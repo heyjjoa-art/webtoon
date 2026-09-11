@@ -998,7 +998,14 @@
         '<textarea id="propText" style="width:100%;min-height:60px;margin-bottom:8px;background:var(--color-surface-soft);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);padding:8px;font-family:inherit;font-size:13px;">' +
         escapeHtml(t.text) +
         "</textarea>" +
-        '<div class="field-row"><span>배경</span><select id="propStyle"><option value="bubble">말풍선(둥근 배경)</option><option value="narration">박스(사각 배경)</option><option value="sfx">배경없음</option></select></div>' +
+        '<div class="field-row"><span>배경</span><select id="propStyle">' +
+        '<option value="bubble">말풍선</option>' +
+        '<option value="bubble-tail">말풍선(꼬리)</option>' +
+        '<option value="cloud">생각풍선</option>' +
+        '<option value="burst">효과음(폭발)</option>' +
+        '<option value="narration">박스</option>' +
+        '<option value="sfx">배경없음</option>' +
+        "</select></div>" +
         '<div class="field-row"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="propPunch"' +
         ((t.punch != null ? t.punch : t.style === "sfx") ? " checked" : "") +
         "> 굵게+외곽선(효과음 느낌)</label></div>" +

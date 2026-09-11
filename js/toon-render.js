@@ -15,7 +15,7 @@ var ToonRender = (function () {
   var TEXT_APPROX_H = 40;
   // 캔버스 아래쪽 여백 - 마지막 컷/텍스트 바로 아래에서 편집이 답답하지 않게.
   var BOTTOM_PAD = 200;
-  var STYLE_CLASSES = ["style-bubble", "style-narration", "style-sfx"];
+  var STYLE_CLASSES = ["style-bubble", "style-bubble-tail", "style-cloud", "style-burst", "style-narration", "style-sfx"];
   // 말풍선/나레이션/효과음 글꼴 선택지 - 편집기(속성 패널의 <select>)와
   // 렌더러(positionText)가 이 하나의 목록만 보고 같은 글꼴을 그리게 한다.
   var FONT_OPTIONS = [
