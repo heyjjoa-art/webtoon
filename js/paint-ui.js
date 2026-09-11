@@ -632,7 +632,7 @@
     }
 
     function dispatchUp(tool, pt) {
-      if (tool === "brush" || tool === "eraser") Paint.brushUp();
+      if (tool === "brush" || tool === "eraser") Paint.brushUp(pt.x, pt.y);
       else if (tool === "select") Paint.selectUp(pt.x, pt.y);
       else if (tool === "line" || tool === "rect" || tool === "circle") Paint.shapeUp(pt.x, pt.y);
       else if (tool === "focus") Paint.focusLinesUp(pt.x, pt.y);

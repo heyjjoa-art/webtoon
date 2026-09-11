@@ -9,6 +9,7 @@
     smoothY = 0;
   var lastStampX = 0,
     lastStampY = 0;
+  var lastPressure = 0.5;
   var drawScheduled = false;
 
   function hexToRgb(hex) {
@@ -178,6 +179,7 @@
     smoothY = y;
     lastStampX = x;
     lastStampY = y;
+    lastPressure = pressure;
     var layer = Paint.getActiveLayer();
     if (!layer || layer.locked) {
       drawing = false;
@@ -199,11 +201,20 @@
     strokeSegment(lastStampX, lastStampY, smoothX, smoothY, pressure);
     lastStampX = smoothX;
     lastStampY = smoothY;
+    lastPressure = pressure;
   }
 
-  function brushUp() {
+  // 보정(smoothing)은 표시 위치를 실제 포인터보다 늦게 따라가게 만드는
+  // 방식이라, 손을 뗀 순간의 좌표를 마지막 stampAt으로 넘겨받지 않으면
+  // 선이 커서보다 항상 살짝 못 미치는 지점에서 끊긴다 - 특히 보정 값이
+  // 클 때 이 잘림이 눈에 띄게 커진다. 그래서 뗄 때 좌표(x, y)를 받아
+  // 그 지점까지 보정 없이 마지막 한 번을 더 그어 마무리한다.
+  function brushUp(x, y) {
     if (!drawing) return;
     drawing = false;
+    if (x != null && y != null && (x !== lastStampX || y !== lastStampY)) {
+      strokeSegment(lastStampX, lastStampY, x, y, lastPressure);
+    }
     Paint.strokeEnd();
     Paint.composite();
     if (Paint.onLayersChanged) Paint.onLayersChanged();
