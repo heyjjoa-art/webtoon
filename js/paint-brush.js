@@ -73,13 +73,52 @@
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
+    } else if (type === "pencil") {
+      // 연필: 크레용보다 촘촘하고 가는 흑연 질감 - 반경을 줄이고 더 잘게
+      // 흔들리는 노이즈로 사각사각한 느낌을 낸다.
+      var pn = Math.abs(Math.sin(x * 45.233 + y * 12.997) * 12345.678) % 1;
+      ctx.globalAlpha = opacity * (0.45 + pn * 0.4);
+      ctx.fillStyle = isEraser ? "#000" : Paint.color;
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.68, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (type === "oil") {
+      // 유화: 불투명하게 겹쳐 칠하되, 붓털처럼 살짝 어긋난 작은 덩어리
+      // 3~4개를 밝기까지 흔들어 얹어서 두툼하고 거친 임파스토 질감을 낸다.
+      var blobs = 4;
+      for (var bi = 0; bi < blobs; bi++) {
+        var jn = Math.abs(Math.sin((x + bi * 13.1) * 12.9898 + (y + bi * 7.7) * 78.233) * 43758.5453) % 1;
+        var jAngle = jn * Math.PI * 2 + bi;
+        var jDist = r * 0.3 * jn;
+        var bx = x + Math.cos(jAngle) * jDist;
+        var by = y + Math.sin(jAngle) * jDist;
+        var shade = 1 + (jn - 0.5) * 0.35;
+        ctx.globalAlpha = Math.min(1, opacity * 0.85);
+        ctx.fillStyle = isEraser
+          ? "#000"
+          : "rgb(" +
+            Math.round(Math.min(255, Math.max(0, rgb.r * shade))) +
+            "," +
+            Math.round(Math.min(255, Math.max(0, rgb.g * shade))) +
+            "," +
+            Math.round(Math.min(255, Math.max(0, rgb.b * shade))) +
+            ")";
+        ctx.beginPath();
+        ctx.arc(bx, by, r * (0.6 + jn * 0.4), 0, Math.PI * 2);
+        ctx.fill();
+      }
     } else {
       // soft / airbrush / watercolor 공통: 부드러운 방사형 그라디언트
       var grad = ctx.createRadialGradient(x, y, 0, x, y, r);
-      var baseAlpha = type === "airbrush" ? opacity * 0.35 : type === "watercolor" ? opacity * 0.45 : opacity;
+      var baseAlpha = type === "airbrush" ? opacity * 0.35 : type === "watercolor" ? opacity * 0.4 : opacity;
       var col = isEraser ? "0,0,0" : rgb.r + "," + rgb.g + "," + rgb.b;
       grad.addColorStop(0, "rgba(" + col + "," + baseAlpha + ")");
-      if (type === "watercolor") grad.addColorStop(0.7, "rgba(" + col + "," + baseAlpha * 0.85 + ")");
+      if (type === "watercolor") {
+        // 수채화 번짐: 가운데는 옅고, 가장자리 쪽에 살짝 더 진한 "웅덩이"
+        // 테두리를 둬서 실제 물감이 마르며 가장자리에 고이는 느낌을 낸다.
+        grad.addColorStop(0.6, "rgba(" + col + "," + baseAlpha * 0.8 + ")");
+        grad.addColorStop(0.85, "rgba(" + col + "," + baseAlpha * 1.3 + ")");
+      }
       grad.addColorStop(1, "rgba(" + col + ",0)");
       ctx.globalAlpha = 1;
       ctx.fillStyle = grad;
@@ -111,7 +150,16 @@
 
   function spacingFor(size) {
     var type = Paint.brush.type;
-    var factor = type === "airbrush" ? 0.4 : type === "soft" || type === "watercolor" ? 0.22 : 0.16;
+    var factor =
+      type === "airbrush"
+        ? 0.4
+        : type === "soft" || type === "watercolor"
+        ? 0.22
+        : type === "oil"
+        ? 0.2
+        : type === "pencil"
+        ? 0.12
+        : 0.16;
     return Math.max(1, size * factor);
   }
 

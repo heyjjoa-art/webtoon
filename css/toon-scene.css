@@ -91,14 +91,51 @@
 .tn-text.style-bubble-tail::after {
   content: "";
   position: absolute;
-  left: 26px;
-  bottom: -9px;
   width: 0;
   height: 0;
+  filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.15));
+}
+
+/* 꼬리 방향(data-tail) - 기본(bl)은 옛 데이터와 그대로 호환되도록 왼쪽
+   아래로 치우친 원래 모양을 유지하고, 나머지 넷은 변마다 가운데에 온다. */
+.tn-text.style-bubble-tail[data-tail="bl"]::after {
+  left: 26px;
+  bottom: -9px;
   border-left: 8px solid transparent;
   border-right: 3px solid transparent;
   border-top: 12px solid #fff;
-  filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.15));
+}
+.tn-text.style-bubble-tail[data-tail="bottom"]::after {
+  left: 50%;
+  bottom: -9px;
+  margin-left: -8px;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 12px solid #fff;
+}
+.tn-text.style-bubble-tail[data-tail="top"]::after {
+  left: 50%;
+  top: -9px;
+  margin-left: -8px;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 12px solid #fff;
+}
+.tn-text.style-bubble-tail[data-tail="left"]::after {
+  top: 50%;
+  left: -9px;
+  margin-top: -8px;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 12px solid #fff;
+}
+.tn-text.style-bubble-tail[data-tail="right"]::after {
+  top: 50%;
+  right: -9px;
+  margin-top: -8px;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 12px solid #fff;
 }
 
 /* 생각풍선 - 뭉실한 타원 배경 + 꼬리 대신 점점 작아지는 동그라미 세 개
@@ -242,6 +279,25 @@
   left: -7px;
   top: calc(50% - 7px);
   cursor: ew-resize;
+}
+
+/* 텍스트(말풍선) 전용 회전 손잡이 - 박스 위쪽에 줄기로 이어붙인다. 오버레이
+   전체를 CSS transform으로 돌리면(positionSelectionOverlay) 이 손잡이도
+   같이 돌아서 "말풍선 기준 위쪽"에 계속 붙어있는 것처럼 보인다. */
+.selection-overlay .rotate-stem {
+  position: absolute;
+  left: 50%;
+  top: -27px;
+  width: 1px;
+  height: 20px;
+  background: var(--color-accent);
+  pointer-events: none;
+}
+.tn-handle.rotate {
+  left: calc(50% - 7px);
+  top: -34px;
+  cursor: grab;
+  background: #4da3ff;
 }
 
 @media (pointer: coarse) {

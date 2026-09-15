@@ -29,9 +29,13 @@
     var SNAP_TOL = 6;
     var MIN_SIZE = 60;
     var MIN_TEXT_W = 80;
+    var MIN_TEXT_SIZE = 10;
+    var MAX_TEXT_SIZE = 60;
     var PANEL_HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
     var PANEL_HANDLES_CORNER = ["nw", "ne", "se", "sw"];
-    var TEXT_HANDLES = ["tw-w", "tw-e"];
+    // 좌우(w/e)는 줄바꿈 폭만 바꾸고, 나머지 모서리/위아래는 글자 크기까지
+    // 함께 늘어나는 "전체 크기" 조절, rotate는 회전 전용 손잡이다.
+    var TEXT_HANDLES = ["nw", "n", "ne", "w", "e", "sw", "s", "se", "rotate"];
     var ALIGN_OPS = [
       { key: "left", icon: "alignLeft", label: "왼쪽 정렬" },
       { key: "centerH", icon: "alignCenterH", label: "가로 가운데" },
@@ -388,18 +392,27 @@
       }
       selectionOverlay.hidden = false;
       if (only.type === "panel") {
+        selectionOverlay.style.transform = "";
         selectionOverlay.style.left = el.style.left;
         selectionOverlay.style.top = el.style.top;
         selectionOverlay.style.width = el.style.width;
         selectionOverlay.style.height = el.style.height;
       } else {
-        // 텍스트는 높이가 내용에 따라 자동이라 실제 렌더된 크기를 그대로 잰다.
+        // 텍스트는 회전이 걸려 있으면 getBoundingClientRect()가 "회전된 모양을
+        // 감싸는 축정렬 박스"를 돌려줘서 실제 크기보다 커 보인다 - 회전 전
+        // 크기를 알아야 하니 잠깐 transform을 지우고 잰 다음 되돌린다. 오버레이
+        // 자체는 그 원래 크기로 앉히고, 같은 각도로 통째로 돌려서 손잡이까지
+        // 말풍선과 함께 돌아가게 만든다.
+        var prevTransform = el.style.transform;
+        el.style.transform = "";
         var r = el.getBoundingClientRect();
+        el.style.transform = prevTransform;
         var cr = canvasEl.getBoundingClientRect();
         selectionOverlay.style.left = r.left - cr.left + "px";
         selectionOverlay.style.top = r.top - cr.top + "px";
         selectionOverlay.style.width = r.width + "px";
         selectionOverlay.style.height = r.height + "px";
+        selectionOverlay.style.transform = only.box.rotation ? "rotate(" + only.box.rotation + "deg)" : "";
       }
       var dirs =
         only.type === "text"
@@ -407,13 +420,19 @@
           : only.box.w < 90 || only.box.h < 90
           ? PANEL_HANDLES_CORNER
           : PANEL_HANDLES;
+      if (only.type === "text") {
+        var stem = document.createElement("div");
+        stem.className = "rotate-stem";
+        selectionOverlay.appendChild(stem);
+      }
       dirs.forEach(function (dir) {
         var h = document.createElement("div");
         h.className = "tn-handle " + dir;
         h.addEventListener("pointerdown", function (e) {
           e.preventDefault();
           e.stopPropagation();
-          startResize(only.type, only.id, dir, h, e);
+          if (dir === "rotate") startRotate(only.id, h, e);
+          else startResize(only.type, only.id, dir, h, e);
         });
         selectionOverlay.appendChild(h);
       });
@@ -426,7 +445,21 @@
       var startClientX = e.clientX;
       var startClientY = e.clientY;
       var scale = ToonRender.currentScale(canvasEl, state.canvasWidth);
-      var start = type === "panel" ? { x: box.x, y: box.y, w: box.w, h: box.h } : { x: box.x, w: box.w };
+      var start =
+        type === "panel"
+          ? { x: box.x, y: box.y, w: box.w, h: box.h }
+          : { x: box.x, w: box.w, size: box.size || 16, midX: box.x + box.w / 2 };
+      // 말풍선은 짧고 넓은 경우가 많아 손잡이 여덟 개가 다닥다닥 붙는다 -
+      // 옆(w/e)만 따로 "폭만 늘리기"로 다르게 동작하면, 바로 옆 모서리
+      // 손잡이와 히트 영역이 겹쳐 어느 쪽을 눌러도 결과가 뒤섞여 버린다.
+      // 그래서 텍스트는 회전 손잡이를 뺀 나머지 전부를 "중심에서 손끝까지의
+      // 거리 비율만큼 폭+글자크기를 함께 키우기"로 통일한다 - 거리는 회전과
+      // 무관한 값이라 몇 도를 돌려놨든 그대로 맞는다.
+      var center = null;
+      if (type === "text") {
+        var startRect = nodes[id].getBoundingClientRect();
+        center = { x: startRect.left + startRect.width / 2, y: startRect.top + startRect.height / 2 };
+      }
       var moved = false;
 
       function onMove(ev) {
@@ -458,13 +491,15 @@
           box.h = b.h;
           ToonRender.positionPanel(nodes[id], box, lastMetrics);
         } else {
-          if (dir === "tw-e") {
-            box.w = Math.max(MIN_TEXT_W, gridSnap(start.w + dx));
-          } else {
-            var nW = Math.max(MIN_TEXT_W, gridSnap(start.w - dx));
-            box.x = start.x + (start.w - nW);
-            box.w = nW;
-          }
+          // 중심에서 손끝까지의 거리 비율만큼 폭과 글자 크기를 함께 키운다.
+          var dist0 = Math.hypot(startClientX - center.x, startClientY - center.y);
+          var dist1 = Math.hypot(ev.clientX - center.x, ev.clientY - center.y);
+          var ratio = dist0 > 1 ? dist1 / dist0 : 1;
+          box.w = Math.max(MIN_TEXT_W, gridSnap(start.w * ratio));
+          box.size = Math.max(MIN_TEXT_SIZE, Math.min(MAX_TEXT_SIZE, Math.round(start.size * ratio)));
+          // 가로 중심을 고정해서, 어느 손잡이를 잡든 좌우로 고르게 커지고
+          // 회전축(가운데)도 그대로 유지되게 한다.
+          box.x = Math.max(0, gridSnap(start.midX - box.w / 2));
           ToonRender.positionText(nodes[id], box, lastMetrics);
         }
         positionSelectionOverlay();
@@ -475,6 +510,42 @@
         handleEl.removeEventListener("pointerup", onUp);
         if (moved) {
           updateSceneSize();
+          renderSidePanel();
+          history.commit();
+          scheduleSave();
+        }
+      }
+      handleEl.addEventListener("pointermove", onMove);
+      handleEl.addEventListener("pointerup", onUp);
+    }
+
+    // ── 말풍선 회전(마우스로 손잡이를 돌려서) ───────────────────────
+    function startRotate(id, handleEl, e) {
+      var box = findAny("text", id);
+      if (!box) return;
+      handleEl.setPointerCapture(e.pointerId);
+      var prevTransform = nodes[id].style.transform;
+      nodes[id].style.transform = "";
+      var r = nodes[id].getBoundingClientRect();
+      nodes[id].style.transform = prevTransform;
+      var cx = r.left + r.width / 2;
+      var cy = r.top + r.height / 2;
+      var startRotation = box.rotation || 0;
+      var startAngle = (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI;
+      var moved = false;
+
+      function onMove(ev) {
+        moved = true;
+        var angle = (Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180) / Math.PI;
+        box.rotation = Math.round(startRotation + (angle - startAngle));
+        ToonRender.positionText(nodes[id], box, lastMetrics);
+        positionSelectionOverlay();
+      }
+      function onUp(ev) {
+        handleEl.releasePointerCapture(ev.pointerId);
+        handleEl.removeEventListener("pointermove", onMove);
+        handleEl.removeEventListener("pointerup", onUp);
+        if (moved) {
           renderSidePanel();
           history.commit();
           scheduleSave();
@@ -1006,6 +1077,15 @@
         '<option value="narration">박스</option>' +
         '<option value="sfx">배경없음</option>' +
         "</select></div>" +
+        '<div class="field-row" id="propTailRow"' +
+        (t.style === "bubble-tail" ? "" : " hidden") +
+        '><span>꼬리 방향</span><select id="propTail">' +
+        '<option value="bl">기본(왼쪽 아래)</option>' +
+        '<option value="bottom">아래</option>' +
+        '<option value="top">위</option>' +
+        '<option value="left">왼쪽</option>' +
+        '<option value="right">오른쪽</option>' +
+        "</select></div>" +
         '<div class="field-row"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="propPunch"' +
         ((t.punch != null ? t.punch : t.style === "sfx") ? " checked" : "") +
         "> 굵게+외곽선(효과음 느낌)</label></div>" +
@@ -1020,6 +1100,12 @@
         '"><span class="field-val" id="propSizeVal">' +
         (t.size || 16) +
         "</span></div>" +
+        '<div class="field-row"><span>회전</span><input type="range" id="propRotation" min="-180" max="180" value="' +
+        (t.rotation || 0) +
+        '"><span class="field-val" id="propRotationVal">' +
+        (t.rotation || 0) +
+        "°</span></div>" +
+        '<p class="muted" style="font-size:12px;margin:0 0 8px;">캔버스에서 파란 손잡이를 드래그해도 돌릴 수 있어요.</p>' +
         '<div class="field-row"><span>색상</span><input type="color" id="propColor" value="' +
         (t.color || (t.style === "sfx" ? "#ffffff" : "#1a1a1a")) +
         '"></div>' +
@@ -1049,6 +1135,16 @@
         history.commit();
         scheduleSave();
       });
+      var tailSelect = sidePanel.querySelector("#propTail");
+      if (tailSelect) {
+        tailSelect.value = t.tailDir || "bl";
+        tailSelect.addEventListener("change", function (e) {
+          t.tailDir = e.target.value;
+          ToonRender.positionText(nodes[t.id], t, lastMetrics);
+          history.commit();
+          scheduleSave();
+        });
+      }
       sidePanel.querySelector("#propPunch").addEventListener("change", function (e) {
         t.punch = e.target.checked;
         render();
@@ -1076,6 +1172,17 @@
         sidePanel.querySelector("#propSizeVal").textContent = String(t.size);
       });
       sizeInput.addEventListener("change", function () {
+        history.commit();
+        scheduleSave();
+      });
+      var rotationInput = sidePanel.querySelector("#propRotation");
+      rotationInput.addEventListener("input", function () {
+        t.rotation = Number(rotationInput.value);
+        ToonRender.positionText(nodes[t.id], t, lastMetrics);
+        positionSelectionOverlay();
+        sidePanel.querySelector("#propRotationVal").textContent = String(t.rotation) + "°";
+      });
+      rotationInput.addEventListener("change", function () {
         history.commit();
         scheduleSave();
       });

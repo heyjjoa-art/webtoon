@@ -572,6 +572,123 @@
     ctx.restore();
   }
 
+  // 하트 하나(기쁨이 여러 개를 크기 다르게 겹쳐 찍는 데 쓴다).
+  function heartPath(ctx, cx, cy, r) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + r * 0.9);
+    ctx.bezierCurveTo(cx - r * 1.3, cy + r * 0.1, cx - r, cy - r * 0.9, cx, cy - r * 0.35);
+    ctx.bezierCurveTo(cx + r, cy - r * 0.9, cx + r * 1.3, cy + r * 0.1, cx, cy + r * 0.9);
+    ctx.closePath();
+  }
+
+  function drawJoy(ctx, cx, cy, radius) {
+    var r = Math.max(6, Math.min(radius, 45));
+    ctx.save();
+    ctx.fillStyle = Paint.color;
+    heartPath(ctx, cx - r * 1.1, cy - r * 0.9, r * 0.4);
+    ctx.fill();
+    heartPath(ctx, cx + r * 1.3, cy - r * 0.6, r * 0.55);
+    ctx.fill();
+    heartPath(ctx, cx, cy, r);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 부끄러움 - 양 볼에 발그레한 타원 + 대각선 세 줄(만화식 홍조 표시).
+  function drawBlush(ctx, cx, cy, radius) {
+    var r = Math.max(8, Math.min(radius, 50));
+    ctx.save();
+    [-1, 1].forEach(function (sign) {
+      var ex = cx + sign * r * 1.15;
+      var grad = ctx.createRadialGradient(ex, cy, 0, ex, cy, r * 0.65);
+      grad.addColorStop(0, "rgba(255,120,140,0.85)");
+      grad.addColorStop(1, "rgba(255,120,140,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(ex, cy, r * 0.6, r * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.75)";
+      ctx.lineWidth = Math.max(1, r * 0.05);
+      ctx.lineCap = "round";
+      for (var i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(ex - r * 0.22 + i * r * 0.2, cy - r * 0.22);
+        ctx.lineTo(ex - r * 0.05 + i * r * 0.2, cy + r * 0.18);
+        ctx.stroke();
+      }
+    });
+    ctx.restore();
+  }
+
+  // 놀람 - 뾰족한 톱니 모양으로 채운 배지(가늘고 긴 집중선과 구분되는,
+  // 두껍고 짧은 스파이크).
+  function drawSurprise(ctx, cx, cy, radius) {
+    var r = Math.max(10, Math.min(radius, 60));
+    var spikes = 10;
+    ctx.save();
+    ctx.fillStyle = Paint.color;
+    ctx.globalAlpha = 0.88;
+    ctx.beginPath();
+    for (var i = 0; i < spikes * 2; i++) {
+      var ang = (Math.PI * 2 * i) / (spikes * 2);
+      var rad = i % 2 === 0 ? r : r * 0.45;
+      var x = cx + Math.cos(ang) * rad,
+        y = cy + Math.sin(ang) * rad;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 감탄(느낌표) - 굵은 "!" 글자를 흰 테두리로 강조해서 찍는다.
+  function drawExclaim(ctx, cx, cy, radius) {
+    var r = Math.max(10, Math.min(radius, 70));
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "900 " + Math.round(r * 1.9) + "px sans-serif";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.lineWidth = Math.max(2, r * 0.22);
+    ctx.strokeText("!", cx, cy);
+    ctx.fillStyle = Paint.color;
+    ctx.fillText("!", cx, cy);
+    ctx.restore();
+  }
+
+  // 활동: 점프/착지할 때 발밑에 남는 먼지 뭉게구름(원 세 개를 겹친다).
+  function drawJump(ctx, cx, cy, radius) {
+    var r = Math.max(8, Math.min(radius, 50));
+    ctx.save();
+    ctx.fillStyle = "rgba(210,200,180,0.75)";
+    ctx.strokeStyle = "rgba(150,140,120,0.5)";
+    ctx.lineWidth = Math.max(1, r * 0.05);
+    [
+      [-0.6, 0.15, 0.5],
+      [0, 0.3, 0.65],
+      [0.65, 0.1, 0.45]
+    ].forEach(function (p) {
+      ctx.beginPath();
+      ctx.ellipse(cx + p[0] * r, cy + p[1] * r, r * p[2], r * p[2] * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  // 활동: 그림자 - 발밑에 까는 납작한 반투명 타원.
+  function drawShadow(ctx, cx, cy, radius) {
+    var r = Math.max(10, Math.min(radius, 120));
+    ctx.save();
+    ctx.fillStyle = "rgba(20,20,30,0.35)";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r, r * 0.32, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawEffectByKind(ctx, x0, y0, x1, y1) {
     var radius = Math.hypot(x1 - x0, y1 - y0);
     if (Paint.effectKind === "flash") drawFlash(ctx, x0, y0, radius);
@@ -581,6 +698,12 @@
     else if (Paint.effectKind === "motion") drawMotion(ctx, x0, y0, x1, y1);
     else if (Paint.effectKind === "anger") drawAnger(ctx, x0, y0, radius);
     else if (Paint.effectKind === "sparkle") drawSparkle(ctx, x0, y0, radius);
+    else if (Paint.effectKind === "joy") drawJoy(ctx, x0, y0, radius);
+    else if (Paint.effectKind === "blush") drawBlush(ctx, x0, y0, radius);
+    else if (Paint.effectKind === "surprise") drawSurprise(ctx, x0, y0, radius);
+    else if (Paint.effectKind === "exclaim") drawExclaim(ctx, x0, y0, radius);
+    else if (Paint.effectKind === "jump") drawJump(ctx, x0, y0, radius);
+    else if (Paint.effectKind === "shadow") drawShadow(ctx, x0, y0, radius);
     else drawFocusLines(ctx, x0, y0, radius);
   }
 

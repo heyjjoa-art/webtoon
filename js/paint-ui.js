@@ -77,26 +77,48 @@
 
   var BRUSH_TYPES = [
     { key: "pen", label: "펜" },
+    { key: "pencil", label: "연필" },
     { key: "soft", label: "부드러운" },
     { key: "marker", label: "마커" },
     { key: "airbrush", label: "에어브러시" },
-    { key: "watercolor", label: "수채" },
-    { key: "crayon", label: "크레용" }
+    { key: "watercolor", label: "수채화" },
+    { key: "oil", label: "유화" },
+    { key: "crayon", label: "크레파스" }
   ];
 
   // 만화 표현에 흔히 쓰는 효과 모음 - 전부 "누르고 끌어서 크기(모션은
   // 방향까지) 정하기"라는 같은 동작을 쓴다(js/paint-extras.js의 effectDown/
-  // Move/Up 하나가 종류만 갈라 보낸다).
-  var EFFECT_KINDS = [
-    { key: "focus", label: "집중선" },
-    { key: "flash", label: "플래시" },
-    { key: "sweat", label: "땀" },
-    { key: "tear", label: "눈물" },
-    { key: "chill", label: "오싹" },
-    { key: "motion", label: "발효과" },
-    { key: "anger", label: "화남" },
-    { key: "sparkle", label: "반짝임" }
+  // Move/Up 하나가 종류만 갈라 보낸다). 상황별로 찾기 쉽게 카테고리로 묶고,
+  // 각 종류의 한글 라벨은 한 곳(EFFECT_LABELS)에만 둔다.
+  var EFFECT_LABELS = {
+    focus: "집중선",
+    flash: "플래시",
+    sparkle: "반짝임",
+    exclaim: "느낌표",
+    joy: "기쁨",
+    blush: "부끄러움",
+    anger: "화남",
+    surprise: "놀람",
+    sweat: "땀",
+    tear: "눈물",
+    chill: "오싹",
+    motion: "발효과",
+    jump: "점프먼지",
+    shadow: "그림자"
+  };
+  var EFFECT_CATEGORIES = [
+    { key: "impact", label: "강조", kinds: ["focus", "flash", "sparkle", "exclaim"] },
+    { key: "emotion", label: "감정", kinds: ["joy", "blush", "anger", "surprise"] },
+    { key: "body", label: "신체반응", kinds: ["sweat", "tear", "chill"] },
+    { key: "action", label: "활동", kinds: ["motion", "jump", "shadow"] }
   ];
+  function categoryOfKind(kind) {
+    var found = EFFECT_CATEGORIES[0].key;
+    EFFECT_CATEGORIES.forEach(function (c) {
+      if (c.kinds.indexOf(kind) !== -1) found = c.key;
+    });
+    return found;
+  }
 
   var PALETTE = [
     "#101010", "#ffffff", "#7a7a7a", "#c94f4f", "#e0893f", "#e8c34b",
@@ -420,9 +442,14 @@
       "</span></div>" +
       '<p class="tool-panel-hint">굵기·색상은 브러시 패널의 값을 그대로 씁니다.</p>' +
       "</div>" +
-      // ── 효과(집중선/플래시 통합) ────────────────────────────────────
+      // ── 효과(강조/감정/신체반응/활동으로 분류) ──────────────────────
       '<div class="tool-panel" data-tool="effect">' +
       "<h4>효과</h4>" +
+      '<div class="segmented" id="effectCategorySeg">' +
+      EFFECT_CATEGORIES.map(function (c) {
+        return '<button class="segmented-btn" data-v="' + c.key + '">' + c.label + "</button>";
+      }).join("") +
+      "</div>" +
       '<div class="brush-grid" id="effectKindGrid"></div>' +
       '<div class="field-row" id="focusDensityRow"><span>밀도</span><input type="range" id="focusDensity" min="12" max="120" value="' +
       (Paint.focusLinesDensity || 60) +
@@ -567,31 +594,61 @@
       Paint.shapeFilled = e.target.checked;
     });
 
-    // ── 효과: 종류 그리드 + 미리보기 ────────────────────────────────
+    // ── 효과: 카테고리 탭 + 종류 그리드 + 미리보기 ──────────────────
     function redrawEffectPreview() {
       var c = el.querySelector("#effectPreviewCanvas");
       if (c && Paint.previewEffect) Paint.previewEffect(c.getContext("2d"), c.width, c.height, Paint.effectKind);
     }
     var effectGrid = el.querySelector("#effectKindGrid");
-    EFFECT_KINDS.forEach(function (k) {
-      var chip = document.createElement("div");
-      chip.className = "brush-chip" + (Paint.effectKind === k.key ? " active" : "");
-      chip.textContent = k.label;
-      chip.addEventListener("click", function () {
-        setEffectKind(k.key);
+    var effectCategorySeg = el.querySelector("#effectCategorySeg");
+    var activeEffectCategory = categoryOfKind(Paint.effectKind);
+
+    function buildEffectGrid() {
+      effectGrid.innerHTML = "";
+      var cat = EFFECT_CATEGORIES.filter(function (c) {
+        return c.key === activeEffectCategory;
+      })[0] || EFFECT_CATEGORIES[0];
+      cat.kinds.forEach(function (kind) {
+        var chip = document.createElement("div");
+        chip.className = "brush-chip" + (Paint.effectKind === kind ? " active" : "");
+        chip.dataset.kind = kind;
+        chip.textContent = EFFECT_LABELS[kind] || kind;
+        chip.addEventListener("click", function () {
+          setEffectKind(kind);
+        });
+        effectGrid.appendChild(chip);
       });
-      effectGrid.appendChild(chip);
+    }
+    function setEffectCategory(catKey) {
+      activeEffectCategory = catKey;
+      Array.prototype.forEach.call(effectCategorySeg.querySelectorAll(".segmented-btn"), function (btn) {
+        btn.classList.toggle("active", btn.dataset.v === catKey);
+      });
+      buildEffectGrid();
+      // 카테고리를 바꾸면 그 카테고리의 첫 종류를 자동으로 골라서, 그리드에
+      // 항상 활성화된 칩이 하나는 보이게 한다.
+      var cat = EFFECT_CATEGORIES.filter(function (c) {
+        return c.key === catKey;
+      })[0];
+      if (cat && cat.kinds.indexOf(Paint.effectKind) === -1) setEffectKind(cat.kinds[0]);
+    }
+    Array.prototype.forEach.call(effectCategorySeg.querySelectorAll(".segmented-btn"), function (btn) {
+      btn.classList.toggle("active", btn.dataset.v === activeEffectCategory);
+      btn.addEventListener("click", function () {
+        setEffectCategory(btn.dataset.v);
+      });
     });
     function setEffectKind(kind) {
       if (Paint.hasSticker()) Paint.stickerCommit();
       Paint.effectKind = kind;
-      Array.prototype.forEach.call(effectGrid.querySelectorAll(".brush-chip"), function (chip, i) {
-        chip.classList.toggle("active", EFFECT_KINDS[i].key === kind);
+      Array.prototype.forEach.call(effectGrid.querySelectorAll(".brush-chip"), function (chip) {
+        chip.classList.toggle("active", chip.dataset.kind === kind);
       });
       el.querySelector("#focusDensityRow").hidden = kind !== "focus";
       el.querySelector("#flashIntensityRow").hidden = kind !== "flash";
       redrawEffectPreview();
     }
+    buildEffectGrid();
     setEffectKind(Paint.effectKind);
     var stickerActionsRow = el.querySelector("#stickerActionsRow");
     if (stickerActionsRow) stickerActionsRow.hidden = !Paint.hasSticker();

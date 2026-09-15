@@ -112,6 +112,8 @@ var ToonRender = (function () {
     el.style.fontFamily = fontCss(t.font);
     el.style.setProperty("--tn-size", String(t.size || 16));
     el.style.color = t.color || "";
+    el.dataset.tail = t.tailDir || "bl";
+    el.style.transform = t.rotation ? "rotate(" + t.rotation + "deg)" : "";
   }
 
   function panelEl(p, m) {
