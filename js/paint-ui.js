@@ -1126,6 +1126,45 @@
     // 두 손가락 제스처는 자연스럽게 이보다 훨씬 떨어진다).
     var PALM_REJECT_DIST = 80;
 
+    // 좁은 화면에서는 옵션 패널이 서랍(drawer)이라 기본적으로 접혀있어서,
+    // 선택 도구로 영역을 골라놓고도 복사/붙여넣기 같은 버튼을 볼 방법이
+    // 없었다 - 이미 선택된 영역 안쪽을 꾹 누르면 그 도구의 옵션 패널을
+    // 열어준다(도구 레일 버튼을 꾹 누르는 것과 같은 동작을 캔버스 위에서도).
+    var SELECT_LONG_PRESS_MS = 450;
+    var SELECT_LONG_PRESS_MOVE_TOL = 10;
+    var selectLongPressTimer = null;
+    var selectLongPressStart = null;
+
+    function pointInsideSelection(clientX, clientY) {
+      var r = Paint.selectionRect;
+      if (!r) return false;
+      var pt = Paint.clientToCanvas(clientX, clientY);
+      return pt.x >= r.x && pt.x <= r.x + r.w && pt.y >= r.y && pt.y <= r.y + r.h;
+    }
+    function maybeStartSelectLongPress(clientX, clientY) {
+      cancelSelectLongPress();
+      if (activeToolKey !== "select" || !pointInsideSelection(clientX, clientY)) return;
+      selectLongPressStart = { x: clientX, y: clientY };
+      selectLongPressTimer = setTimeout(function () {
+        selectLongPressTimer = null;
+        if (activeToolKey === "select" && Paint.selectionRect) {
+          setInspectorOpen(true);
+          showInspectorPage("select");
+        }
+      }, SELECT_LONG_PRESS_MS);
+    }
+    function maybeCancelSelectLongPressOnMove(clientX, clientY) {
+      if (!selectLongPressTimer || !selectLongPressStart) return;
+      if (Math.hypot(clientX - selectLongPressStart.x, clientY - selectLongPressStart.y) > SELECT_LONG_PRESS_MOVE_TOL) {
+        cancelSelectLongPress();
+      }
+    }
+    function cancelSelectLongPress() {
+      clearTimeout(selectLongPressTimer);
+      selectLongPressTimer = null;
+      selectLongPressStart = null;
+    }
+
     function touchPointsArray() {
       return Array.from(touches.values());
     }
@@ -1204,7 +1243,9 @@
           drawPointerId = e.pointerId;
           currentPressure = 0.5;
           dispatchDown(activeToolKey, Paint.clientToCanvas(e.clientX, e.clientY), e);
+          maybeStartSelectLongPress(e.clientX, e.clientY);
         } else if (touches.size === 2) {
+          cancelSelectLongPress();
           var pts = touchPointsArray();
           var spacing = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
           // 진짜 두 손가락 핀치는 손가락이 자연스럽게 떨어져 있다 - 그리는
@@ -1236,6 +1277,7 @@
       trySetCapture(e.pointerId);
       var pt = Paint.clientToCanvas(e.clientX, e.clientY);
       dispatchDown(activeToolKey, pt, e);
+      maybeStartSelectLongPress(e.clientX, e.clientY);
     });
 
     area.addEventListener("pointermove", function (e) {
@@ -1248,6 +1290,7 @@
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
         if (touches.size === 1 && e.pointerId === drawPointerId) {
+          maybeCancelSelectLongPressOnMove(e.clientX, e.clientY);
           dispatchMove(activeToolKey, Paint.clientToCanvas(e.clientX, e.clientY));
         } else if (touches.size === 2 && pinch) {
           var pts = touchPointsArray();
@@ -1279,11 +1322,13 @@
       }
       if (e.pointerId !== drawPointerId) return;
       currentPressure = e.pressure;
+      maybeCancelSelectLongPressOnMove(e.clientX, e.clientY);
       var pt2 = Paint.clientToCanvas(e.clientX, e.clientY);
       dispatchMove(activeToolKey, pt2);
     });
 
     function onUp(e) {
+      cancelSelectLongPress();
       if (e.pointerType === "touch") {
         touches.delete(e.pointerId);
         if (e.pointerId === drawPointerId) {

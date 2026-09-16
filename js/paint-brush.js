@@ -26,6 +26,76 @@
     return v - Math.floor(v);
   }
 
+  // ── 텍스처 없는 붓의 "진짜 붓 느낌" 합성 ────────────────────────
+  // 펜/크레파스를 뺀 나머지(부드러운/마커/에어브러시/수채화/유화/연필)를
+  // dab마다 곧장 레이어에 알파 블렌딩해서 찍으면, 겹치는 부분은 진하고
+  // 한 번만 지나간 가장자리는 옅어서 "동그라미 여러 개를 늘어놓은" 자국이
+  // 남는다. 그래서 이 붓들은 한 획이 끝날 때까지 dab을 별도 스크래치
+  // 캔버스에만 모아 찍고("농도" 배율 없이, 매번 같은 세기로), 화면에는
+  // 매번 [획 시작 전 원본 복원 → 스크래치를 농도값 딱 한 번만 곱해서 얹기]
+  // 를 다시 해서 보여준다 - 그러면 겹친 정도와 무관하게 한 획 전체가
+  // 고르게 이어진 하나의 붓자국으로 보인다.
+  var SCRATCH_TYPES = { soft: true, marker: true, airbrush: true, watercolor: true, oil: true, pencil: true };
+  var useScratch = false;
+  var scratchCanvas = null;
+  var scratchCtx = null;
+  var scratchPreCanvas = null;
+  var scratchPreCtx = null;
+  var scratchDirty = null; // {x0,y0,x1,y1}
+
+  function ensureScratchCanvases() {
+    if (scratchCanvas && scratchCanvas.width === Paint.nativeW && scratchCanvas.height === Paint.nativeH) return;
+    scratchCanvas = document.createElement("canvas");
+    scratchCanvas.width = Paint.nativeW;
+    scratchCanvas.height = Paint.nativeH;
+    scratchCtx = scratchCanvas.getContext("2d");
+    scratchPreCanvas = document.createElement("canvas");
+    scratchPreCanvas.width = Paint.nativeW;
+    scratchPreCanvas.height = Paint.nativeH;
+    scratchPreCtx = scratchPreCanvas.getContext("2d");
+  }
+
+  function scratchStart(layer) {
+    ensureScratchCanvases();
+    scratchDirty = null;
+    scratchCtx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
+    scratchPreCtx.clearRect(0, 0, Paint.nativeW, Paint.nativeH);
+    scratchPreCtx.drawImage(layer.canvas, 0, 0);
+  }
+
+  function scratchExtendDirty(x, y, pad) {
+    var x0 = Math.max(0, Math.floor(x - pad));
+    var y0 = Math.max(0, Math.floor(y - pad));
+    var x1 = Math.min(Paint.nativeW, Math.ceil(x + pad));
+    var y1 = Math.min(Paint.nativeH, Math.ceil(y + pad));
+    if (!scratchDirty) {
+      scratchDirty = { x0: x0, y0: y0, x1: x1, y1: y1 };
+    } else {
+      scratchDirty.x0 = Math.min(scratchDirty.x0, x0);
+      scratchDirty.y0 = Math.min(scratchDirty.y0, y0);
+      scratchDirty.x1 = Math.max(scratchDirty.x1, x1);
+      scratchDirty.y1 = Math.max(scratchDirty.y1, y1);
+    }
+  }
+
+  function scratchRecomposite(layer, opacity) {
+    if (!scratchDirty) return;
+    var r = scratchDirty;
+    var w = r.x1 - r.x0,
+      h = r.y1 - r.y0;
+    if (w <= 0 || h <= 0) return;
+    var ctx = layer.ctx;
+    ctx.clearRect(r.x0, r.y0, w, h);
+    ctx.drawImage(scratchPreCanvas, r.x0, r.y0, w, h, r.x0, r.y0, w, h);
+    var clipped = applyClipToCtx(ctx);
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    if (layer.alphaLock) ctx.globalCompositeOperation = "source-atop";
+    ctx.drawImage(scratchCanvas, r.x0, r.y0, w, h, r.x0, r.y0, w, h);
+    ctx.restore();
+    if (clipped) ctx.restore();
+  }
+
   function scheduleComposite() {
     if (drawScheduled) return;
     drawScheduled = true;
@@ -161,9 +231,27 @@
     var x1 = Math.max(w - margin, w / 2);
     var spacing = spacingFor(size);
     var steps = Math.max(1, Math.round((x1 - x0) / spacing));
-    for (var i = 0; i <= steps; i++) {
-      var t = i / steps;
-      stampDab(ctx, x0 + (x1 - x0) * t, y, size, Paint.brush.opacity, false);
+    // 실제로 그릴 때와 똑같이 보여야 하니, 스크래치를 쓰는 붓은 미리보기도
+    // 같은 방식(dab을 임시 캔버스에 모아 찍고 농도를 한 번만 곱하기)으로
+    // 그린다 - 아니면 미리보기만 예전의 "동그라미 자국" 그대로 보인다.
+    if (SCRATCH_TYPES[Paint.brush.type]) {
+      var tmp = document.createElement("canvas");
+      tmp.width = w;
+      tmp.height = h;
+      var tctx = tmp.getContext("2d");
+      for (var i = 0; i <= steps; i++) {
+        var t = i / steps;
+        stampDab(tctx, x0 + (x1 - x0) * t, y, size, 1, false);
+      }
+      ctx.save();
+      ctx.globalAlpha = Paint.brush.opacity;
+      ctx.drawImage(tmp, 0, 0);
+      ctx.restore();
+      return;
+    }
+    for (var i2 = 0; i2 <= steps; i2++) {
+      var t2 = i2 / steps;
+      stampDab(ctx, x0 + (x1 - x0) * t2, y, size, Paint.brush.opacity, false);
     }
   }
 
@@ -241,12 +329,26 @@
     var layer = Paint.getActiveLayer();
     if (!layer || layer.locked) return;
     var size = effectiveSize(pressure);
-    var opacity = effectiveOpacity(pressure);
     var isEraser = Paint.tool === "eraser";
     symmetryPoints(x, y).forEach(function (pt) {
-      stampWithLock(layer.ctx, layer, pt.x, pt.y, size, opacity, isEraser);
+      if (useScratch) {
+        // 스크래치에는 매번 같은 세기로 찍는다 - 필압에 따른 농도 변화는
+        // 포기하는 대신, 겹친 정도와 무관하게 한 획 전체가 고르게 이어지는
+        // 걸 얻는다(최종 농도는 scratchRecomposite에서 딱 한 번만 곱한다).
+        stampDab(scratchCtx, pt.x, pt.y, size, 1, false);
+        scratchExtendDirty(pt.x, pt.y, size / 2 + 4);
+      } else {
+        stampWithLock(layer.ctx, layer, pt.x, pt.y, size, effectiveOpacity(pressure), isEraser);
+      }
       Paint.extendDirty(pt.x, pt.y, size / 2 + 4);
     });
+  }
+
+  // dab을 여러 번 찍는 구간(strokeSegment의 반복문, brushDown의 첫 점) 전체가
+  // 끝난 뒤 딱 한 번만 스크래치를 레이어에 다시 올린다 - dab마다 매번
+  // 다시 올리면(느려지기만 하고 결과는 똑같다) 낭비다.
+  function finishScratchIfNeeded(layer) {
+    if (useScratch) scratchRecomposite(layer, Paint.brush.opacity);
   }
 
   function strokeSegment(x0, y0, x1, y1, pressure) {
@@ -258,6 +360,8 @@
       var t = i / steps;
       stampAt(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, pressure);
     }
+    var layer = Paint.getActiveLayer();
+    if (layer) finishScratchIfNeeded(layer);
     scheduleComposite();
   }
 
@@ -274,7 +378,10 @@
       return;
     }
     Paint.strokeStart(layer.id);
+    useScratch = Paint.tool !== "eraser" && !!SCRATCH_TYPES[Paint.brush.type];
+    if (useScratch) scratchStart(layer);
     stampAt(x, y, pressure);
+    finishScratchIfNeeded(layer);
     scheduleComposite();
   }
 
@@ -303,6 +410,7 @@
     if (x != null && y != null && (x !== lastStampX || y !== lastStampY)) {
       strokeSegment(lastStampX, lastStampY, x, y, lastPressure);
     }
+    useScratch = false;
     Paint.strokeEnd();
     Paint.composite();
     if (Paint.onLayersChanged) Paint.onLayersChanged();

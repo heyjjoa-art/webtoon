@@ -330,9 +330,14 @@
     // 나누는 건 기존과 동일하게 화면 확대/축소와 무관하게 항상 같은 화면
     // 크기로 보이게 하기 위함이고, 그 앞의 min/max 클램프가 "상자 크기에
     // 비례하되 너무 작거나 크지는 않게"를 담당한다.
-    var hrPx = Math.max(3, Math.min(9, minSide * 0.06));
-    var offsetPx = Math.max(12, Math.min(24, minSide * 0.14));
-    return { hr: hrPx / scale, offset: offsetPx / scale, tol: (hrPx + 8) / scale };
+    // 효과 스티커는 찍을 때 넣는 여백(반경+30px) 때문에 박스 자체는 늘
+    // 어느 정도 크지만, 실제로 자주 쓰는 크기 범위(대략 80~400px)에서도
+    // 눈에 띄게 차이가 나야 해서 위쪽 한도를 상자가 꽤 커야 닿도록 낮춰
+    // 잡았다(이전엔 최대치에 너무 빨리 닿아서 체감상 거의 항상 같은
+    // 크기로 보였다).
+    var hrPx = Math.max(3, Math.min(10, minSide * 0.025));
+    var offsetPx = Math.max(10, Math.min(22, minSide * 0.06));
+    return { hr: hrPx / scale, offset: offsetPx / scale, tol: Math.max(hrPx + 8, 12) / scale };
   }
 
   function boxHandlePoints(box, rotation) {
