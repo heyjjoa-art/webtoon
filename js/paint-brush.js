@@ -18,6 +18,14 @@
     return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
   }
 
+  // 좌표 + 시드로 결정되는 의사난수 - 매번 다시 그려도(미리보기, 되돌리기 후
+  // 재구성 등) 같은 질감이 나오게, 이전 결과를 기억해두지 않고 매번 다시
+  // 계산한다.
+  function pseudoRand2(x, y, seed) {
+    var v = Math.sin(x * 12.9898 + y * 78.233 + seed * 37.719) * 43758.5453;
+    return v - Math.floor(v);
+  }
+
   function scheduleComposite() {
     if (drawScheduled) return;
     drawScheduled = true;
@@ -65,14 +73,25 @@
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
     } else if (type === "crayon") {
-      // 매 dab마다 좌표 기반 의사난수로 알파를 흔들어 거친 질감을 낸다(패턴
-      // 이미지를 매번 합성하는 것보다 훨씬 가볍다).
-      var n = Math.abs(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1;
-      ctx.globalAlpha = opacity * (0.4 + n * 0.5);
+      // 크레파스: 매끈한 원 하나 대신 작고 거친 반점 여러 개를 흩뿌려서,
+      // 크레파스 특유의 울퉁불퉁하고 종이 결이 비치는 "톡톡한" 질감을 낸다
+      // (하나의 원 안을 고르게 덮지 않고 군데군데 비워둬야 그렇게 보인다).
+      var speckCount = 7;
       ctx.fillStyle = isEraser ? "#000" : Paint.color;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
+      for (var si = 0; si < speckCount; si++) {
+        var sn1 = pseudoRand2(x, y, si * 3.7 + 1.1);
+        var sn2 = pseudoRand2(x, y, si * 5.3 + 2.9);
+        var sn3 = pseudoRand2(x, y, si * 7.1 + 4.4);
+        var sAngle = sn1 * Math.PI * 2;
+        var sDist = sn2 * r * 0.85;
+        var sx = x + Math.cos(sAngle) * sDist;
+        var sy = y + Math.sin(sAngle) * sDist;
+        var sr = Math.max(0.6, r * (0.22 + sn3 * 0.3));
+        ctx.globalAlpha = Math.min(1, opacity * (0.4 + sn3 * 0.6));
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fill();
+      }
     } else if (type === "pencil") {
       // 연필: 크레용보다 촘촘하고 가는 흑연 질감 - 반경을 줄이고 더 잘게
       // 흔들리는 노이즈로 사각사각한 느낌을 낸다.
@@ -159,6 +178,8 @@
         ? 0.2
         : type === "pencil"
         ? 0.12
+        : type === "crayon"
+        ? 0.1
         : 0.16;
     return Math.max(1, size * factor);
   }

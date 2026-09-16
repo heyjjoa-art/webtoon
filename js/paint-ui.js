@@ -469,6 +469,7 @@
       '<div class="tool-panel" data-tool="select">' +
       "<h4>선택</h4>" +
       '<p class="tool-panel-hint">캔버스를 드래그해 영역을 고르고, 손잡이를 끌어 크기를 바꿀 수 있습니다. 채우기·효과·패턴은 선택된 영역 안에만 적용됩니다.</p>' +
+      '<div class="field-row"><button class="btn btn-ghost btn-sm" id="selCopyBtn" style="flex:1;">복사</button><button class="btn btn-ghost btn-sm" id="selPasteBtn" style="flex:1;">붙여넣기</button></div>' +
       '<div class="field-row"><button class="btn btn-ghost btn-sm" id="selDupBtn" style="flex:1;">복사(레이어로)</button><button class="btn btn-danger btn-sm" id="selEraseBtn" style="flex:1;">지우기</button></div>' +
       '<div class="field-row"><button class="btn btn-ghost btn-sm" id="selFlipHBtn" style="flex:1;">좌우 반전</button><button class="btn btn-ghost btn-sm" id="selFlipVBtn" style="flex:1;">상하 반전</button></div>' +
       '<button class="btn btn-ghost btn-sm" id="selTransformBtn" style="width:100%;margin-bottom:8px;">변형(크기·회전)으로 보내기</button>' +
@@ -477,7 +478,7 @@
       // ── 변형 ──────────────────────────────────────────────────────
       '<div class="tool-panel" data-tool="transform">' +
       "<h4>변형</h4>" +
-      '<p class="tool-panel-hint">두 손가락으로 오므리거나 벌려서 크기를, 돌려서 회전시킬 수 있습니다. 한 손가락 드래그는 이동입니다.</p>' +
+      '<p class="tool-panel-hint">효과 스티커와 같은 손잡이입니다 - 안쪽을 드래그하면 이동, 주황 손잡이로 크기, 파란 손잡이로 회전(모바일은 두 손가락 핀치도 가능). 바깥을 누르면 바로 확정됩니다.</p>' +
       '<div class="field-row"><button class="btn btn-primary btn-sm" id="xformCommitBtn" style="flex:1;">확정</button><button class="btn btn-ghost btn-sm" id="xformCancelBtn" style="flex:1;">취소</button></div>' +
       "</div>";
 
@@ -676,12 +677,21 @@
       Paint.setSymmetry(symSelect.value, v);
     });
 
-    // ── 선택: 지우기/복사/반전/변형 보내기/해제 ─────────────────────
+    // ── 선택: 지우기/복사/붙여넣기/반전/변형 보내기/해제 ────────────
     el.querySelector("#selClearBtn").addEventListener("click", function () {
       Paint.clearSelection();
     });
     el.querySelector("#selEraseBtn").addEventListener("click", function () {
       Paint.selectionEraseContent();
+    });
+    el.querySelector("#selCopyBtn").addEventListener("click", function () {
+      Paint.selectionCopy();
+    });
+    el.querySelector("#selPasteBtn").addEventListener("click", function () {
+      Paint.selectionPaste();
+      // 붙여넣은 내용은 효과 스티커와 같은 물건이라, 그 손잡이를 실제로
+      // 조작할 수 있는 "효과" 도구/패널로 바로 넘어간다.
+      if (Paint.hasSticker()) openToolOptions("effect");
     });
     el.querySelector("#selDupBtn").addEventListener("click", function () {
       Paint.selectionDuplicate();
@@ -1151,10 +1161,12 @@
           Paint.stickerCommit();
         }
         Paint.effectDown(pt.x, pt.y);
-      } else if (tool === "transform" && Paint.isTransforming()) transformDragStart = pt;
+      } else if (tool === "transform" && Paint.isTransforming()) {
+        // 효과 스티커와 같은 손잡이 UI: 손잡이/안쪽을 짚었을 때만 드래그를
+        // 시작하고, 바깥을 짚으면 지금 변형은 그대로 확정한다.
+        if (!Paint.transformPointerDown(pt.x, pt.y)) Paint.transformCommit();
+      }
     }
-
-    var transformDragStart = null;
 
     function dispatchMove(tool, pt) {
       if (tool === "brush" || tool === "eraser") Paint.brushMove(pt.x, pt.y, currentPressure);
@@ -1163,9 +1175,8 @@
       else if (tool === "effect") {
         if (Paint.isStickerDragging()) Paint.stickerPointerMove(pt.x, pt.y);
         else Paint.effectMove(pt.x, pt.y);
-      } else if (tool === "transform" && transformDragStart) {
-        Paint.transformMoveBy(pt.x - transformDragStart.x, pt.y - transformDragStart.y);
-        transformDragStart = pt;
+      } else if (tool === "transform" && Paint.isTransformDragging()) {
+        Paint.transformPointerMove(pt.x, pt.y);
       }
     }
 
@@ -1176,7 +1187,7 @@
       else if (tool === "effect") {
         if (Paint.isStickerDragging()) Paint.stickerPointerUp();
         else Paint.effectUp(pt.x, pt.y);
-      } else if (tool === "transform") transformDragStart = null;
+      } else if (tool === "transform") Paint.transformPointerUp();
     }
 
     var currentPressure = 0.5;

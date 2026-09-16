@@ -285,11 +285,177 @@
     drawSelectionOverlay(Paint.selectionRect);
   }
 
+  // ── 복사/붙여넣기 ───────────────────────────────────────────────
+  // 선택 영역을 내부 클립보드(캔버스 한 장)에 담아뒀다가, 붙여넣을 때
+  // 효과 스티커와 완전히 같은 방식(뜬 채로 드래그해 옮기고 손잡이로
+  // 크기·회전을 맞춘 뒤 확정)으로 캔버스 가운데에 올려놓는다.
+  var clipboardCanvas = null;
+
+  function selectionCopy() {
+    var layer = Paint.getActiveLayer();
+    var r = Paint.selectionRect;
+    if (!layer || !r || r.w <= 0 || r.h <= 0) return;
+    var tmp = document.createElement("canvas");
+    tmp.width = r.w;
+    tmp.height = r.h;
+    tmp.getContext("2d").drawImage(layer.canvas, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+    clipboardCanvas = tmp;
+  }
+
+  function hasClipboard() {
+    return !!clipboardCanvas;
+  }
+
+  function selectionPaste() {
+    if (!clipboardCanvas) return;
+    if (stickerState) stickerCommit();
+    var w = clipboardCanvas.width,
+      h = clipboardCanvas.height;
+    var box = { x: Paint.nativeW / 2 - w / 2, y: Paint.nativeH / 2 - h / 2, w: w, h: h };
+    stickerSrc = clipboardCanvas;
+    var layer = Paint.getActiveLayer();
+    stickerState = { box: box, rotation: 0, layerId: layer && layer.id };
+    drawStickerOverlay();
+    if (Paint.onStickerChanged) Paint.onStickerChanged();
+  }
+
+  // ── 상자 손잡이(변형/스티커 공용) ─────────────────────────────────
+  // "네모난 이미지 하나를 이동·크기조절·회전한다"는 상호작용을 변형 도구와
+  // 효과 스티커가 똑같이 쓴다 - 손잡이 크기/위치 계산, 손잡이 눌림 판정,
+  // 드래그에 따른 이동/크기/회전 적용을 여기 한 곳에만 두고 양쪽이 같이 쓴다.
+  function boxHandleMetrics(box) {
+    var scale = Paint.view.scale || 1;
+    var minSide = Math.min(box.w, box.h);
+    // 상자가 작으면 손잡이도 작게, 크면 일정 크기 이상 커지지 않게 - scale로
+    // 나누는 건 기존과 동일하게 화면 확대/축소와 무관하게 항상 같은 화면
+    // 크기로 보이게 하기 위함이고, 그 앞의 min/max 클램프가 "상자 크기에
+    // 비례하되 너무 작거나 크지는 않게"를 담당한다.
+    var hrPx = Math.max(3, Math.min(9, minSide * 0.06));
+    var offsetPx = Math.max(12, Math.min(24, minSide * 0.14));
+    return { hr: hrPx / scale, offset: offsetPx / scale, tol: (hrPx + 8) / scale };
+  }
+
+  function boxHandlePoints(box, rotation) {
+    var cx = box.x + box.w / 2,
+      cy = box.y + box.h / 2;
+    var hw = box.w / 2,
+      hh = box.h / 2;
+    var rad = (rotation * Math.PI) / 180;
+    var cos = Math.cos(rad),
+      sin = Math.sin(rad);
+    var offset = boxHandleMetrics(box).offset;
+    function toWorld(lx, ly) {
+      return [cx + lx * cos - ly * sin, cy + lx * sin + ly * cos];
+    }
+    return {
+      nw: toWorld(-hw, -hh),
+      ne: toWorld(hw, -hh),
+      se: toWorld(hw, hh),
+      sw: toWorld(-hw, hh),
+      n: toWorld(0, -hh),
+      rotate: toWorld(0, -hh - offset)
+    };
+  }
+
+  function isInsideRotatedBox(x, y, box, rotation) {
+    var cx = box.x + box.w / 2,
+      cy = box.y + box.h / 2;
+    var rad = (-rotation * Math.PI) / 180;
+    var dx = x - cx,
+      dy = y - cy;
+    var lx = dx * Math.cos(rad) - dy * Math.sin(rad);
+    var ly = dx * Math.sin(rad) + dy * Math.cos(rad);
+    return Math.abs(lx) <= box.w / 2 && Math.abs(ly) <= box.h / 2;
+  }
+
+  function hitTestBoxHandles(box, rotation, x, y) {
+    var tol = boxHandleMetrics(box).tol;
+    var handles = boxHandlePoints(box, rotation);
+    var found = null;
+    ["rotate", "nw", "ne", "se", "sw"].forEach(function (key) {
+      if (found) return;
+      var p = handles[key];
+      if (Math.hypot(x - p[0], y - p[1]) <= tol) found = key;
+    });
+    if (found) return found;
+    if (isInsideRotatedBox(x, y, box, rotation)) return "move";
+    return null;
+  }
+
+  function drawBoxHandles(ctx, box, rotation) {
+    var scale = Paint.view.scale || 1;
+    var handles = boxHandlePoints(box, rotation);
+    var hr = boxHandleMetrics(box).hr;
+    ctx.save();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "rgba(255,180,84,0.95)";
+    ctx.lineWidth = 1.5 / scale;
+    ctx.beginPath();
+    ctx.moveTo(handles.n[0], handles.n[1]);
+    ctx.lineTo(handles.rotate[0], handles.rotate[1]);
+    ctx.stroke();
+    ["nw", "ne", "se", "sw"].forEach(function (key) {
+      var p = handles[key];
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], hr, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffb454";
+      ctx.fill();
+      ctx.stroke();
+    });
+    ctx.beginPath();
+    ctx.arc(handles.rotate[0], handles.rotate[1], hr, 0, Math.PI * 2);
+    ctx.fillStyle = "#4da3ff";
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 손잡이 하나를 누른 순간 시작 상태를 기억해뒀다가, 매 이동마다 그 시작
+  // 상태 기준으로 다시 계산한다(중간에 오차가 쌓이지 않는다).
+  function beginBoxDrag(box, rotation, mode, x, y) {
+    return {
+      mode: mode,
+      startX: x,
+      startY: y,
+      startBox: Object.assign({}, box),
+      startRotation: rotation,
+      cx: box.x + box.w / 2,
+      cy: box.y + box.h / 2
+    };
+  }
+
+  function applyBoxDrag(box, drag, x, y) {
+    if (drag.mode === "move") {
+      box.x = drag.startBox.x + (x - drag.startX);
+      box.y = drag.startBox.y + (y - drag.startY);
+      return null;
+    }
+    if (drag.mode === "rotate") {
+      var a0 = Math.atan2(drag.startY - drag.cy, drag.startX - drag.cx);
+      var a1 = Math.atan2(y - drag.cy, x - drag.cx);
+      return drag.startRotation + ((a1 - a0) * 180) / Math.PI;
+    }
+    // 모서리/위아래: 중심에서 손끝까지의 거리 비율만큼 키운다 - 회전과
+    // 무관한 값이라 몇 도를 돌려놨든 그대로 맞는다.
+    var dist0 = Math.hypot(drag.startX - drag.cx, drag.startY - drag.cy);
+    var dist1 = Math.hypot(x - drag.cx, y - drag.cy);
+    var ratio = dist0 > 1 ? dist1 / dist0 : 1;
+    var newW = Math.max(8, drag.startBox.w * ratio);
+    var newH = Math.max(8, drag.startBox.h * ratio);
+    box.x = drag.cx - newW / 2;
+    box.y = drag.cy - newH / 2;
+    box.w = newW;
+    box.h = newH;
+    return null;
+  }
+
   // ── 자유 변형 ───────────────────────────────────────────────────
-  // 별도 HTML 손잡이 없이: 펜/마우스 드래그 = 이동, 두 손가락 핀치 = 확대/회전.
-  // (핀치 제스처는 paint-ui.js가 tool==='transform'일 때 뷰 줌 대신 여기로 넘겨준다.)
+  // 효과 스티커와 같은 손잡이 UI: 안쪽 드래그 = 이동, 모서리/위아래 손잡이
+  // = 크기, 위쪽 파란 손잡이 = 회전. 두 손가락 핀치(모바일)는 보너스로
+  // 그대로 남겨둔다(paint-ui.js가 tool==='transform'일 때 넘겨준다).
   var transformSrc = null;
   var transformState = null; // { box:{x,y,w,h}, origBox, rotation }
+  var transformDrag = null;
 
   function transformBegin() {
     var layer = Paint.getActiveLayer();
@@ -322,15 +488,33 @@
     ctx.drawImage(transformSrc, -b.w / 2, -b.h / 2, b.w, b.h);
     ctx.strokeStyle = "rgba(255,180,84,0.9)";
     ctx.lineWidth = 2 / Paint.view.scale;
+    ctx.setLineDash([8 / Paint.view.scale, 6 / Paint.view.scale]);
     ctx.strokeRect(-b.w / 2, -b.h / 2, b.w, b.h);
     ctx.restore();
+    drawBoxHandles(ctx, b, transformState.rotation);
   }
 
-  function transformMoveBy(dx, dy) {
-    if (!transformState) return;
-    transformState.box.x += dx;
-    transformState.box.y += dy;
+  function transformHitTest(x, y) {
+    if (!transformState) return null;
+    return hitTestBoxHandles(transformState.box, transformState.rotation, x, y);
+  }
+  function isTransformDragging() {
+    return !!transformDrag;
+  }
+  function transformPointerDown(x, y) {
+    var hit = transformHitTest(x, y);
+    if (!hit) return false;
+    transformDrag = beginBoxDrag(transformState.box, transformState.rotation, hit, x, y);
+    return true;
+  }
+  function transformPointerMove(x, y) {
+    if (!transformDrag) return;
+    var newRotation = applyBoxDrag(transformState.box, transformDrag, x, y);
+    if (newRotation != null) transformState.rotation = newRotation;
     drawTransformPreview();
+  }
+  function transformPointerUp() {
+    transformDrag = null;
   }
 
   function transformScaleRotateBy(scaleFactor, deltaDeg) {
@@ -365,6 +549,7 @@
     Paint.composite();
     transformSrc = null;
     transformState = null;
+    transformDrag = null;
     if (Paint.onLayersChanged) Paint.onLayersChanged();
   }
 
@@ -378,6 +563,7 @@
     Paint.composite();
     transformSrc = null;
     transformState = null;
+    transformDrag = null;
   }
 
   function isTransforming() {
@@ -754,7 +940,6 @@
   var stickerSrc = null;
   var stickerState = null; // { box:{x,y,w,h}, rotation, layerId }
   var stickerDrag = null; // { mode:'move'|'nw'|'ne'|'se'|'sw'|'rotate', startX, startY, startBox, startRotation, cx, cy }
-  var STICKER_ROTATE_OFFSET = 28;
 
   function beginEffectSticker(x0, y0, x1, y1, radius) {
     if (stickerState) stickerCommit();
@@ -786,52 +971,9 @@
     if (Paint.onStickerChanged) Paint.onStickerChanged();
   }
 
-  function stickerHandlePoints(box, rotation) {
-    var cx = box.x + box.w / 2,
-      cy = box.y + box.h / 2;
-    var hw = box.w / 2,
-      hh = box.h / 2;
-    var rad = (rotation * Math.PI) / 180;
-    var cos = Math.cos(rad),
-      sin = Math.sin(rad);
-    var offset = STICKER_ROTATE_OFFSET / (Paint.view.scale || 1);
-    function toWorld(lx, ly) {
-      return [cx + lx * cos - ly * sin, cy + lx * sin + ly * cos];
-    }
-    return {
-      nw: toWorld(-hw, -hh),
-      ne: toWorld(hw, -hh),
-      se: toWorld(hw, hh),
-      sw: toWorld(-hw, hh),
-      n: toWorld(0, -hh),
-      rotate: toWorld(0, -hh - offset)
-    };
-  }
-
-  function isInsideStickerBox(x, y, box, rotation) {
-    var cx = box.x + box.w / 2,
-      cy = box.y + box.h / 2;
-    var rad = (-rotation * Math.PI) / 180;
-    var dx = x - cx,
-      dy = y - cy;
-    var lx = dx * Math.cos(rad) - dy * Math.sin(rad);
-    var ly = dx * Math.sin(rad) + dy * Math.cos(rad);
-    return Math.abs(lx) <= box.w / 2 && Math.abs(ly) <= box.h / 2;
-  }
-
   function hitTestSticker(x, y) {
     if (!stickerState) return null;
-    var tol = 18 / (Paint.view.scale || 1);
-    var handles = stickerHandlePoints(stickerState.box, stickerState.rotation);
-    var found = null;
-    ["rotate", "nw", "ne", "se", "sw"].forEach(function (key) {
-      if (found) return;
-      var p = handles[key];
-      if (Math.hypot(x - p[0], y - p[1]) <= tol) found = key;
-    });
-    if (found) return found;
-    if (isInsideStickerBox(x, y, stickerState.box, stickerState.rotation)) return "move";
-    return null;
+    return hitTestBoxHandles(stickerState.box, stickerState.rotation, x, y);
   }
 
   function drawStickerOverlay() {
@@ -849,31 +991,7 @@
     ctx.setLineDash([8 / scale, 6 / scale]);
     ctx.strokeRect(-b.w / 2, -b.h / 2, b.w, b.h);
     ctx.restore();
-
-    var handles = stickerHandlePoints(b, stickerState.rotation);
-    var hr = 7 / scale;
-    ctx.save();
-    ctx.setLineDash([]);
-    ctx.strokeStyle = "rgba(255,180,84,0.95)";
-    ctx.lineWidth = 1.5 / scale;
-    ctx.beginPath();
-    ctx.moveTo(handles.n[0], handles.n[1]);
-    ctx.lineTo(handles.rotate[0], handles.rotate[1]);
-    ctx.stroke();
-    ["nw", "ne", "se", "sw"].forEach(function (key) {
-      var p = handles[key];
-      ctx.beginPath();
-      ctx.arc(p[0], p[1], hr, 0, Math.PI * 2);
-      ctx.fillStyle = "#ffb454";
-      ctx.fill();
-      ctx.stroke();
-    });
-    ctx.beginPath();
-    ctx.arc(handles.rotate[0], handles.rotate[1], hr, 0, Math.PI * 2);
-    ctx.fillStyle = "#4da3ff";
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
+    drawBoxHandles(ctx, b, stickerState.rotation);
   }
 
   function hasSticker() {
@@ -886,40 +1004,14 @@
   function stickerPointerDown(x, y) {
     var hit = hitTestSticker(x, y);
     if (!hit) return false;
-    var b = stickerState.box;
-    stickerDrag = {
-      mode: hit,
-      startX: x,
-      startY: y,
-      startBox: Object.assign({}, b),
-      startRotation: stickerState.rotation,
-      cx: b.x + b.w / 2,
-      cy: b.y + b.h / 2
-    };
+    stickerDrag = beginBoxDrag(stickerState.box, stickerState.rotation, hit, x, y);
     return true;
   }
 
   function stickerPointerMove(x, y) {
     if (!stickerDrag) return;
-    var d = stickerDrag;
-    if (d.mode === "move") {
-      stickerState.box.x = d.startBox.x + (x - d.startX);
-      stickerState.box.y = d.startBox.y + (y - d.startY);
-    } else if (d.mode === "rotate") {
-      var a0 = Math.atan2(d.startY - d.cy, d.startX - d.cx);
-      var a1 = Math.atan2(y - d.cy, x - d.cx);
-      stickerState.rotation = d.startRotation + ((a1 - a0) * 180) / Math.PI;
-    } else {
-      var dist0 = Math.hypot(d.startX - d.cx, d.startY - d.cy);
-      var dist1 = Math.hypot(x - d.cx, y - d.cy);
-      var ratio = dist0 > 1 ? dist1 / dist0 : 1;
-      var newW = Math.max(8, d.startBox.w * ratio);
-      var newH = Math.max(8, d.startBox.h * ratio);
-      stickerState.box.w = newW;
-      stickerState.box.h = newH;
-      stickerState.box.x = d.cx - newW / 2;
-      stickerState.box.y = d.cy - newH / 2;
-    }
+    var newRotation = applyBoxDrag(stickerState.box, stickerDrag, x, y);
+    if (newRotation != null) stickerState.rotation = newRotation;
     drawStickerOverlay();
   }
 
@@ -1115,9 +1207,15 @@
   Paint.selectionEraseContent = selectionEraseContent;
   Paint.selectionDuplicate = selectionDuplicate;
   Paint.selectionFlip = selectionFlip;
+  Paint.selectionCopy = selectionCopy;
+  Paint.hasClipboard = hasClipboard;
+  Paint.selectionPaste = selectionPaste;
   Paint.refreshSelectionOverlay = refreshSelectionOverlay;
   Paint.transformBegin = transformBegin;
-  Paint.transformMoveBy = transformMoveBy;
+  Paint.transformPointerDown = transformPointerDown;
+  Paint.transformPointerMove = transformPointerMove;
+  Paint.transformPointerUp = transformPointerUp;
+  Paint.isTransformDragging = isTransformDragging;
   Paint.transformScaleRotateBy = transformScaleRotateBy;
   Paint.transformCommit = transformCommit;
   Paint.transformCancel = transformCancel;
